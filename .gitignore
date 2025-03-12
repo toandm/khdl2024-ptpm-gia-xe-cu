@@ -1,0 +1,8 @@
+.venv
+.wvenv
+*.pyc
+*.pyo
+__pycache__
+*.db
+*.png
+.DS_Store
