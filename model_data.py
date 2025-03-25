@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-
-# import statsmodels.api as sm
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from sklearn.preprocessing import PolynomialFeatures
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
 COUNTRY_LOOKUP_PATH = "data/country_price_multiplier.csv"
@@ -74,5 +74,64 @@ df_select = df_transform[
 ]
 
 df_final = df_select
+
+
+# Plot
+plt.scatter(df_final["age_log"], df_final["price_log"])
+plt.xlabel("Age Log")
+plt.ylabel("Price Log")
+plt.show()
+
+# Linear regression models
+X = sm.add_constant(df_final["age_log"])
+y = df_final["price_log"]
+m1 = sm.OLS(y, X).fit()
+print(m1.summary())
+plt.scatter(df_final["age_log"], df_final["price_log"])
+plt.plot(df_final["age_log"], m1.fittedvalues, "r.")
+plt.show()
+
+# Polynomial regression models
+poly = PolynomialFeatures(degree=3)
+X_poly = poly.fit_transform(df_final[["age_log"]])
+m3 = sm.OLS(y, X_poly).fit()
+print(m3.summary())
+plt.scatter(df_final["age_log"], df_final["price_log"])
+plt.plot(df_final["age_log"], m3.fittedvalues, "r.")
+plt.show()
+
+# Polynomial regression with mileage
+X_poly_mil = poly.fit_transform(df_final[["age_log", "mileage_log"]])
+m3_mil = sm.OLS(y, X_poly_mil).fit()
+print(m3_mil.summary())
+plt.scatter(m3_mil.fittedvalues, m3_mil.resid)
+plt.xlabel("Fitted values")
+plt.ylabel("Residuals")
+plt.show()
+
+# Polynomial regression with mileage and country multiplier
+X_poly_mil_country = poly.fit_transform(
+    df_final[["age_log", "mileage_log", "country_multiplier"]]
+)
+m4 = sm.OLS(y, X_poly_mil_country).fit()
+print(m4.summary())
+plt.scatter(m4.fittedvalues, m4.resid)
+plt.xlabel("Fitted values")
+plt.ylabel("Residuals")
+plt.show()
+
+# Polynomial regression with mileage, country multiplier, and ref price
+X_poly_mil_country_ref = poly.fit_transform(
+    df_final[["age_log", "mileage_log", "country_multiplier", "ref_price_log"]]
+)
+m5 = sm.OLS(y, X_poly_mil_country_ref).fit()
+print(m5.summary())
+plt.scatter(m5.fittedvalues, m5.resid)
+plt.xlabel("Fitted values")
+plt.ylabel("Residuals")
+plt.show()
+
+# AIC and BIC
+print(sm.stats.anova_lm(m3, m3_mil, m4, m5))
 
 d = 1
