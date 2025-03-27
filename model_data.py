@@ -110,13 +110,13 @@ X = np.hstack(
 
 lin_model = sm.OLS(y, X).fit()
 print(f"{lin_model.summary()=}")
-sns.regplot(
-    x=lin_model.fittedvalues,
-    y=lin_model.get_influence().resid_studentized_internal,
-    lowess=True,
-    line_kws={"color": "red"},
-)
-plt.show()
+# sns.regplot(
+#     x=lin_model.fittedvalues,
+#     y=lin_model.get_influence().resid_studentized_internal,
+#     lowess=True,
+#     line_kws={"color": "red"},
+# )
+# plt.show()
 
 
 # Predict
