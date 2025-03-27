@@ -79,90 +79,31 @@ df_select = df_transform[
 
 df_final = df_select
 
-
-# Plot to check for linearity
-# plt.scatter(df_final["age_log"], df_final["price_log"])
-# plt.show()
-
 # Linear regression models
-X = sm.add_constant(df_final["age_log"])
 y = df_final["price_log"]
-m1 = sm.OLS(endog=y, exog=X).fit()
-print(f"{m1.summary()=}")
-# plt.scatter(df_final["age_log"], df_final["price_log"])
-# plt.plot(df_final["age_log"], m1.fittedvalues, "r.")
-# plt.show()
 
-# Polynomial regression models
+# Polynomial for age_log
 poly = PolynomialFeatures(degree=3)
-X_poly = poly.fit_transform(df_final[["age_log"]])
-
-# Get orthogonal polynomial like R
-# Ref: https://stackoverflow.com/questions/41317127/python-equivalent-to-r-poly-function
-X_ortho_poly = np.linalg.qr(X_poly)[0][:, 1:]
-X_ortho_poly_intecept = sm.add_constant(X_ortho_poly)
-m3 = sm.OLS(y, X_ortho_poly_intecept).fit()
-print(f"{m3.summary()=}")
-# plt.scatter(df_final["age_log"], df_final["price_log"])
-# plt.plot(df_final["age_log"], m3.fittedvalues, "r.")
-# plt.show()
+age_log_poly_intercept = poly.fit_transform(df_final[["age_log"]])
 
 # Polynomial regression with mileage
-X_poly_mil = np.hstack((X_ortho_poly_intecept, df_final[["mileage_log"]]))
-m3_mil = sm.OLS(y, X_poly_mil).fit()
-print(f"{m3_mil.summary()=}")
-
-# # Check standardized residual against fitted value
-# sns.regplot(
-#     x=m3_mil.fittedvalues,
-#     y=m3_mil.get_influence().resid_studentized_internal,
-#     lowess=True,
-#     line_kws={"color": "red"},
-# )
-# plt.show()
-
-# Polynomial regression with mileage and country multiplier
-X_poly_mil_country = np.hstack((X_poly_mil, df_final[["country_multiplier"]]))
-m4 = sm.OLS(y, X_poly_mil_country).fit()
-print(f"{m4.summary()=}")
-# sns.regplot(
-#     x=m4.fittedvalues,
-#     y=m4.get_influence().resid_studentized_internal,
-#     lowess=True,
-#     line_kws={"color": "red"},
-# )
-# plt.show()
-
-# Polynomial regression with mileage, country multiplier, and ref price
-X_poly_mil_country_ref = np.hstack((X_poly_mil_country, df_final[["ref_price_log"]]))
-m5 = sm.OLS(y, X_poly_mil_country_ref).fit()
-print(f"{m5.summary()=}")
-# sns.regplot(
-#     x=m5.fittedvalues,
-#     y=m5.get_influence().resid_studentized_internal,
-#     lowess=True,
-#     line_kws={"color": "red"},
-# )
-# plt.show()
-
-# AIC and BIC
-print(
+X = np.hstack(
     (
-        m3.aic,
-        m3_mil.aic,
-        m4.aic,
-        m5.aic,
+        age_log_poly_intercept,
+        df_final[["mileage_log", "country_multiplier", "ref_price_log"]],
     )
 )
 
-print(
-    (
-        m3.bic,
-        m3_mil.bic,
-        m4.bic,
-        m5.bic,
-    )
+lin_model = sm.OLS(y, X).fit()
+print(f"{lin_model.summary()=}")
+sns.regplot(
+    x=lin_model.fittedvalues,
+    y=lin_model.get_influence().resid_studentized_internal,
+    lowess=True,
+    line_kws={"color": "red"},
 )
+plt.show()
+
 
 # Predict
 # Create new data for prediction
@@ -187,7 +128,7 @@ X_new = np.hstack(
 )
 
 # Predict and exponentiate the result
-predicted_price = np.exp(m5.predict(X_new)) * 1_000
+predicted_price = np.exp(lin_model.predict(X_new)) * 1_000
 print(f"{predicted_price[0]=: ,}")
 
 d = 1
