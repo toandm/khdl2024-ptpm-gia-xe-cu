@@ -56,7 +56,21 @@ df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
 
 ## Try keeping records with sensible mileage
-df_transform = df_filter[df_filter["mileage"].between(500, 900_000)]
+df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
+
+## Remove outliers, unreasonable price. These are either
+## only the bike component, or are actually another model
+df_filter = df_filter[
+    ~((df_filter["model"] == "SH") & (df_filter["price_clean"] < 3000))
+]
+
+df_transform = df_filter[
+    ~(
+        (df_filter["model"] == "SH")
+        & (df_filter["age_updated"] <= 5)
+        & (df_filter["price_clean"] < 20000)
+    )
+]
 
 # Log transform
 df_transform["price_log"] = np.log(df_transform["price_clean"])
