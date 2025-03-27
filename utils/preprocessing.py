@@ -1,4 +1,4 @@
-JSON_FILE_PATH = "data/input_scoli.json"
+JSON_FILE_PATH = "data/input_monthly_income.json"
 
 import pandas as pd
 import json
