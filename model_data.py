@@ -14,6 +14,22 @@ SCOLI_PATH = "data/input_scoli_2023.json"
 # Config pandas
 pd.options.mode.copy_on_write = True
 
+# Input
+INPUT = {
+    "model": "SH",
+    "reg_year": 2020,
+    "mileage": 10_000,
+    "origin": "Việt Nam",
+    "province": "Hà Nội",
+}
+
+# Input transformation
+# - model: look up against ref table and get ref price + divide 1_000 + log
+# - reg_year: get age + log + polynomial transformation
+# - mileage: log
+# - origin: look up against ref table and get multiplier
+# - province: look up against ref table and get scoli index
+
 df_input = pd.read_csv(INPUT_FILE_PATH)
 df_countries = pd.read_csv(COUNTRY_LOOKUP_PATH)
 df_ref_price = pd.read_csv(REF_PRICE_PATH)
@@ -27,7 +43,14 @@ df = df_input.merge(
 # Clean columns
 df["price_clean"] = pd.to_numeric(df["price"].str.replace("đ", "").str.replace(".", ""))
 df["ref_price_clean"] = pd.to_numeric(df["ref_price"].str.replace(".", ""))
-df["location_clean"] = df["location"].str.split(", ").apply(lambda x: x[-1])
+df["province"] = df["location"].str.split(", ").apply(lambda x: x[-1])
+df["province_clean"] = df["province"].case_when(
+    caselist=[
+        df["province"].eq("Tp Hồ Chí Minh", "TP. Hồ Chí Minh"),
+        df["province"].eq("Bà Rịa - Vũng Tàu", "Bà Rịa-Vũng Tàu"),
+        df["province"].eq("Thừa Thiên Huế", "Thừa Thiên - Huế"),
+    ]
+)
 df["reg_year_clean"] = pd.to_numeric(
     df["reg_year"].case_when(caselist=[(df["reg_year"].eq("trước năm 1980"), 1980)])
 )
@@ -90,7 +113,7 @@ df_select = df_transform[
         "ref_price_log",
         "origin",
         "country_multiplier",
-        "location_clean",
+        "province_clean",
     ]
 ]
 

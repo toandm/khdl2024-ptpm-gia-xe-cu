@@ -1,5 +1,6 @@
-import pandas as pd
 import json
+import numpy as np
+import pandas as pd
 
 
 def read_json_stat(file_path: str) -> pd.DataFrame:
@@ -31,3 +32,31 @@ def read_json_stat(file_path: str) -> pd.DataFrame:
     df = pd.DataFrame(rows, columns=headers)
 
     return df
+
+
+def clean_prediction_input(input: dict):
+    """
+    Transform inputs from user and output as the model input
+    Input should have these fields:
+    - model
+    - reg_year
+    - mileage
+    - origin
+    - province
+    """
+
+
+def clean_mileage(df: pd.DataFrame) -> pd.DataFrame:
+    return np.log(df)
+
+
+def clean_model(df: pd.DataFrame) -> pd.DataFrame:
+    pass
+
+
+def clean_province(df: pd.DataFrame) -> pd.DataFrame:
+    pass
+
+
+def clean_reg_year(df: pd.DataFrame) -> pd.DataFrame:
+    pass
