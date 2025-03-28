@@ -2,6 +2,7 @@ import json
 import logging
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import PolynomialFeatures
 
 CURRENT_YEAR = 2025
 
@@ -74,6 +75,10 @@ def transform_model(df_col: pd.Series) -> pd.Series:
     return output_df["ref_price_clean_transform"]
 
 
+def transform_origin(df_col: pd.Series) -> pd.Series:
+    pass
+
+
 def transform_province(df_col: pd.Series) -> pd.Series:
     """
     Note that the input here must be picked from the input_scoli itself,
@@ -116,7 +121,7 @@ def transform_reg_year(df_col: pd.Series) -> pd.Series:
     return df["age_log"]
 
 
-def transform_prediction_input(input: dict):
+def transform_prediction_input(input: dict) -> np.ndarray:
     """
     Transform inputs from user and output as the model input
     Input should have these fields:
@@ -126,3 +131,30 @@ def transform_prediction_input(input: dict):
     - origin
     - province
     """
+    df = pd.DataFrame(input)
+    df["age_log"] = transform_reg_year(df_col=df["reg_year"])
+    df["mileage_log"] = transform_mileage(df_col=df["mileage"])
+    df["origin_multiplier"] = transform_origin(df_col=df["origin"])
+    df["model_ref_price_log"] = transform_model(df_col=df["model"])
+    df["province_scoli"] = transform_province(df_col=df["province"])
+
+    # Polynomial for age_log with intercept
+    poly = PolynomialFeatures(degree=3)
+    age_log_poly_intercept = poly.fit_transform(df[["age_log"]])
+
+    # Polynomial regression with mileage
+    X = np.hstack(
+        (
+            age_log_poly_intercept,
+            df[
+                [
+                    "mileage_log",
+                    "origin_multiplier",
+                    "model_ref_price_log",
+                    "province_scoli",
+                ]
+            ],
+        )
+    )
+
+    return X

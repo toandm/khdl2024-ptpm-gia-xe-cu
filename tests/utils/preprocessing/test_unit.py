@@ -43,3 +43,7 @@ def test_transform(input_dict: dict, fn, expected_output_dict: dict):
         pd.testing.assert_frame_equal(df_output, expected_output, check_dtype=False)
         is None
     )
+
+
+def test_transform_prediction_input():
+    pass
