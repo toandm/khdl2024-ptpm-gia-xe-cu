@@ -32,7 +32,7 @@ import pytest
 )
 def test_transform(input_dict: dict, fn, expected_output_dict: dict):
     df_input = pd.DataFrame(input_dict)
-    df_output = fn(df=df_input).to_frame()
+    df_output = fn(df_col=df_input.iloc[:, 0]).to_frame()
     expected_output = pd.DataFrame(expected_output_dict)
     assert (
         pd.testing.assert_frame_equal(df_output, expected_output, check_dtype=False)

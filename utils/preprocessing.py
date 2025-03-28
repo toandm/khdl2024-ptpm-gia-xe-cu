@@ -35,12 +35,14 @@ def read_json_stat(file_path: str) -> pd.DataFrame:
     return df
 
 
-def transform_mileage(df: pd.DataFrame) -> pd.Series:
-    df["mileage_log"] = np.log(df)
+def transform_mileage(df_col: pd.Series) -> pd.Series:
+    df = df_col.to_frame()
+    df["mileage"] = df.iloc[:, 0]
+    df["mileage_log"] = np.log(df["mileage"])
     return df["mileage_log"]
 
 
-def transform_model(df: pd.DataFrame) -> pd.Series:
+def transform_model(df_col: pd.Series) -> pd.Series:
     # Get reference value
     MODEL_REF_PRICE_PATH = "data/model_ref_price.csv"
     df_model_ref_price = pd.read_csv(MODEL_REF_PRICE_PATH)
@@ -49,6 +51,8 @@ def transform_model(df: pd.DataFrame) -> pd.Series:
     )
 
     # Join with dataframe
+    df = df_col.to_frame()
+    df["model"] = df.iloc[:, 0]
     output_df = df.merge(
         right=df_model_ref_price, left_on="model", right_on="model", how="left"
     )
@@ -68,7 +72,7 @@ def transform_model(df: pd.DataFrame) -> pd.Series:
     return output_df["ref_price_clean_transform"]
 
 
-def transform_province(df: pd.DataFrame) -> pd.Series:
+def transform_province(df_col: pd.Series) -> pd.Series:
     """
     Note that the input here must be picked from the input_scoli itself,
     otherwise join will introduce nan values
@@ -79,6 +83,8 @@ def transform_province(df: pd.DataFrame) -> pd.Series:
     df_scoli.columns = ["province", "year", "province_scoli"]
 
     # Join with dataframe
+    df = df_col.to_frame()
+    df["province"] = df.iloc[:, 0]
     output_df = df.merge(
         right=df_scoli, left_on="province", right_on="province", how="left"
     )
