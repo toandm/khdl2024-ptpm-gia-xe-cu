@@ -51,5 +51,31 @@ def test_transform(input_dict: dict, fn, expected_output_dict: dict):
     )
 
 
-def test_transform_prediction_input():
-    pass
+@pytest.fixture
+def input_dict() -> dict:
+    return {
+        "mileage": [10_000],
+        "model": ["SH"],
+        "origin": ["Việt Nam"],
+        "province": ["Hà Nội"],
+        "reg_year": [2021],
+    }
+
+
+def test_transform_prediction_input(input_dict):
+    expected_output = np.array(
+        [
+            [
+                1,  # age_log polynomials
+                np.log(4) ** 1,
+                np.log(4) ** 2,
+                np.log(4) ** 3,
+                np.log(10_000),  # mileage log
+                1,  # origin_multiplier
+                np.log(105_000),  # model_ref_price_log
+                100,  # province_scoli
+            ]
+        ]
+    )
+    output = transform_prediction_input(input=input_dict)
+    assert np.testing.assert_array_equal(output, expected_output) is None

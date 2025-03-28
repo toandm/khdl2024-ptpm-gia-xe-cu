@@ -144,11 +144,11 @@ def transform_prediction_input(input: dict) -> np.ndarray:
     """
     Transform inputs from user and output as the model input
     Input should have these fields:
-    - model
-    - reg_year
     - mileage
+    - model
     - origin
     - province
+    - reg_year
     """
     df = pd.DataFrame(input)
     df["age_log"] = transform_reg_year(df_col=df["reg_year"])
