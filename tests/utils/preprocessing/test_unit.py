@@ -1,6 +1,7 @@
 from utils.preprocessing import (
     transform_mileage,
     transform_model,
+    transform_origin,
     transform_province,
     transform_reg_year,
     transform_prediction_input,
@@ -22,6 +23,11 @@ import pytest
             {"model": ["Wave", "SH", "Future"]},
             transform_model,
             {"ref_price_clean_transform": np.log([20_000, 105_000, 32_000])},
+        ),
+        (
+            {"origin": ["Hàn Quốc", "Việt Nam", "Thái Lan"]},
+            transform_origin,
+            {"country_multiplier": [3, 1, 2]},
         ),
         (
             {"province": ["TP. Hồ Chí Minh", "Hà Nội", "Thừa Thiên - Huế"]},

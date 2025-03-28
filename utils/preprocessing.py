@@ -76,7 +76,26 @@ def transform_model(df_col: pd.Series) -> pd.Series:
 
 
 def transform_origin(df_col: pd.Series) -> pd.Series:
-    pass
+    # Get reference value
+    COUNTRY_MULTIPLIER_PATH = "data/origin_country_multiplier.csv"
+    df_countries = pd.read_csv(COUNTRY_MULTIPLIER_PATH)
+
+    # Join with dataframe
+    df = df_col.to_frame()
+    df["origin"] = df.iloc[:, 0]
+    output_df = df.merge(
+        right=df_countries, left_on="origin", right_on="country_name", how="left"
+    )
+
+    # Check for nan values
+    count_nan_value = int(output_df["country_multiplier"].isnull().sum())
+    if count_nan_value > 0:
+        logging.error(
+            f"There are nan values: {output_df[output_df['country_multiplier'].isnull()]}"
+        )
+        raise ValueError(f"Found {count_nan_value} nan values")
+
+    return output_df["country_multiplier"]
 
 
 def transform_province(df_col: pd.Series) -> pd.Series:
