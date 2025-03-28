@@ -4,10 +4,12 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
 import seaborn as sns
+from utils.preprocessing import read_json_stat
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
 COUNTRY_LOOKUP_PATH = "data/country_price_multiplier.csv"
 REF_PRICE_PATH = "data/model_ref_price.csv"
+SCOLI_PATH = "data/input_scoli_2023.json"
 
 # Config pandas
 pd.options.mode.copy_on_write = True
@@ -15,6 +17,7 @@ pd.options.mode.copy_on_write = True
 df_input = pd.read_csv(INPUT_FILE_PATH)
 df_countries = pd.read_csv(COUNTRY_LOOKUP_PATH)
 df_ref_price = pd.read_csv(REF_PRICE_PATH)
+df_scoli = read_json_stat(file_path=SCOLI_PATH)
 
 # Join with country lookup
 df = df_input.merge(
@@ -51,8 +54,8 @@ df_filter = df_filter[
 ## Keep models with over 30 offers only
 df_model_count = df_filter.groupby("model").agg(counts=("model", "count")).reset_index()
 
-# df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
-df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
+df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
+# df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
 
 ## Try keeping records with sensible mileage
