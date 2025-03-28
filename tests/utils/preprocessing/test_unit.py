@@ -1,9 +1,9 @@
 from utils.preprocessing import (
-    clean_mileage,
-    clean_model,
-    clean_prediction_input,
-    clean_province,
-    clean_reg_year,
+    transform_mileage,
+    transform_model,
+    transform_prediction_input,
+    transform_province,
+    transform_reg_year,
 )
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ def test_clean_mileage():
             "col1": [1, 2, 3],
         }
     )
-    df_output = clean_mileage(df=df_input)
+    df_output = transform_mileage(df=df_input)
     expected_output = pd.DataFrame(
         {
             "col1": np.log([1, 2, 3]),
