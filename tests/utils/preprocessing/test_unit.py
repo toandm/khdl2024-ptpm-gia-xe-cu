@@ -28,6 +28,11 @@ import pytest
             transform_province,
             {"province_scoli": [98.44, 100, 93.65]},
         ),
+        (
+            {"reg_year": [2013, 2025, 2006]},
+            transform_reg_year,
+            {"age_log": np.log([12, 0.5, 19])},
+        ),
     ],
 )
 def test_transform(input_dict: dict, fn, expected_output_dict: dict):

@@ -3,6 +3,8 @@ import logging
 import numpy as np
 import pandas as pd
 
+CURRENT_YEAR = 2025
+
 
 def read_json_stat(file_path: str) -> pd.DataFrame:
     """
@@ -100,8 +102,18 @@ def transform_province(df_col: pd.Series) -> pd.Series:
     return output_df["province_scoli"]
 
 
-def transform_reg_year(df: pd.DataFrame) -> pd.DataFrame:
-    pass
+def transform_reg_year(df_col: pd.Series) -> pd.Series:
+    # Read column
+    df = df_col.to_frame()
+    df["reg_year"] = df.iloc[:, 0]
+    df["age"] = CURRENT_YEAR - df["reg_year"]
+
+    # Move age = 0 to age = 0.5 since the bike must have some age
+    df["age_updated"] = df["age"].case_when(caselist=[(df["age"].eq(0), 0.5)])
+
+    df["age_log"] = np.log(df["age_updated"])
+
+    return df["age_log"]
 
 
 def transform_prediction_input(input: dict):
