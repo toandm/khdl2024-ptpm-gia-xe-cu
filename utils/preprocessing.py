@@ -34,6 +34,38 @@ def read_json_stat(file_path: str) -> pd.DataFrame:
     return df
 
 
+def transform_mileage(df: pd.DataFrame) -> pd.DataFrame:
+    return np.log(df)
+
+
+def transform_model(df: pd.DataFrame) -> pd.Series:
+    # Get model reference price
+    MODEL_REF_PRICE_PATH = "data/model_ref_price.csv"
+    df_model_ref_price = pd.read_csv(MODEL_REF_PRICE_PATH)
+    df_model_ref_price["ref_price_clean"] = pd.to_numeric(
+        df_model_ref_price["ref_price"].str.replace(".", "")
+    )
+
+    # Join with dataframe
+    output_df = df.merge(
+        right=df_model_ref_price, left_on="model", right_on="model", how="left"
+    )
+
+    output_df["ref_price_clean_transform"] = np.log(
+        output_df["ref_price_clean"] / 1_000
+    )
+
+    return output_df["ref_price_clean_transform"]
+
+
+def transform_province(df: pd.DataFrame) -> pd.DataFrame:
+    pass
+
+
+def transform_reg_year(df: pd.DataFrame) -> pd.DataFrame:
+    pass
+
+
 def transform_prediction_input(input: dict):
     """
     Transform inputs from user and output as the model input
@@ -44,19 +76,3 @@ def transform_prediction_input(input: dict):
     - origin
     - province
     """
-
-
-def transform_mileage(df: pd.DataFrame) -> pd.DataFrame:
-    return np.log(df)
-
-
-def transform_model(df: pd.DataFrame) -> pd.DataFrame:
-    pass
-
-
-def transform_province(df: pd.DataFrame) -> pd.DataFrame:
-    pass
-
-
-def transform_reg_year(df: pd.DataFrame) -> pd.DataFrame:
-    pass
