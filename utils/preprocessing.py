@@ -40,7 +40,7 @@ def transform_mileage(df: pd.DataFrame) -> pd.Series:
 
 
 def transform_model(df: pd.DataFrame) -> pd.Series:
-    # Get model reference price
+    # Get reference value
     MODEL_REF_PRICE_PATH = "data/model_ref_price.csv"
     df_model_ref_price = pd.read_csv(MODEL_REF_PRICE_PATH)
     df_model_ref_price["ref_price_clean"] = pd.to_numeric(
@@ -59,7 +59,10 @@ def transform_model(df: pd.DataFrame) -> pd.Series:
     return output_df["ref_price_clean_transform"]
 
 
-def transform_province(df: pd.DataFrame) -> pd.DataFrame:
+def transform_province(df: pd.DataFrame) -> pd.Series:
+    # Get reference value
+    SCOLI_PATH = "data/input_scoli_2023.json"
+    df_scoli = read_json_stat(file_path=SCOLI_PATH)
     pass
 
 
