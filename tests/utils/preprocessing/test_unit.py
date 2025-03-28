@@ -15,10 +15,10 @@ def test_transform_mileage():
             "mileage": [1, 2, 3],
         }
     )
-    df_output = transform_mileage(df=df_input)
+    df_output = transform_mileage(df=df_input).to_frame()
     expected_output = pd.DataFrame(
         {
-            "mileage": np.log([1, 2, 3]),
+            "mileage_log": np.log([1, 2, 3]),
         }
     )
 

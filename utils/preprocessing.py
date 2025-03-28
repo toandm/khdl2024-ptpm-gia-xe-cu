@@ -34,8 +34,9 @@ def read_json_stat(file_path: str) -> pd.DataFrame:
     return df
 
 
-def transform_mileage(df: pd.DataFrame) -> pd.DataFrame:
-    return np.log(df)
+def transform_mileage(df: pd.DataFrame) -> pd.Series:
+    df["mileage_log"] = np.log(df)
+    return df["mileage_log"]
 
 
 def transform_model(df: pd.DataFrame) -> pd.Series:
