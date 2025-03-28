@@ -1,4 +1,5 @@
 import json
+import logging
 import numpy as np
 import pandas as pd
 
@@ -56,14 +57,41 @@ def transform_model(df: pd.DataFrame) -> pd.Series:
         output_df["ref_price_clean"] / 1_000
     )
 
+    # Check for nan values
+    count_nan_value = int(output_df["ref_price_clean_transform"].isnull().sum())
+    if count_nan_value > 0:
+        logging.error(
+            f"There are nan values: {output_df[output_df['ref_price_clean_transform'].isnull()]}"
+        )
+        raise ValueError(f"Found {count_nan_value} nan values")
+
     return output_df["ref_price_clean_transform"]
 
 
 def transform_province(df: pd.DataFrame) -> pd.Series:
+    """
+    Note that the input here must be picked from the input_scoli itself,
+    otherwise join will introduce nan values
+    """
     # Get reference value
     SCOLI_PATH = "data/input_scoli_2023.json"
     df_scoli = read_json_stat(file_path=SCOLI_PATH)
-    pass
+    df_scoli.columns = ["province", "year", "province_scoli"]
+
+    # Join with dataframe
+    output_df = df.merge(
+        right=df_scoli, left_on="province", right_on="province", how="left"
+    )
+
+    # Check for nan values
+    count_nan_value = int(output_df["province_scoli"].isnull().sum())
+    if count_nan_value > 0:
+        logging.error(
+            f"There are nan values: {output_df[output_df['province_scoli'].isnull()]}"
+        )
+        raise ValueError(f"Found {count_nan_value} nan values")
+
+    return output_df["province_scoli"]
 
 
 def transform_reg_year(df: pd.DataFrame) -> pd.DataFrame:

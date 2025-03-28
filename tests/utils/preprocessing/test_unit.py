@@ -23,6 +23,11 @@ import pytest
             transform_model,
             {"ref_price_clean_transform": np.log([20_000, 105_000, 32_000])},
         ),
+        (
+            {"province": ["TP. Hồ Chí Minh", "Hà Nội", "Thừa Thiên - Huế"]},
+            transform_province,
+            {"province_scoli": [98.44, 100, 93.65]},
+        ),
     ],
 )
 def test_transform(input_dict: dict, fn, expected_output_dict: dict):
