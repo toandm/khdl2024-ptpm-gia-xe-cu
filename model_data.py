@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
 import seaborn as sns
-from utils.preprocessing import read_json_stat, transform_prediction_input
+from utils import preprocessing as pp
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
 COUNTRY_LOOKUP_PATH = "data/origin_country_multiplier.csv"
@@ -14,39 +14,41 @@ SCOLI_PATH = "data/input_scoli_2023.json"
 # Config pandas
 pd.options.mode.copy_on_write = True
 
-df_input = pd.read_csv(INPUT_FILE_PATH)
-df_countries = pd.read_csv(COUNTRY_LOOKUP_PATH)
-df_ref_price = pd.read_csv(REF_PRICE_PATH)
-df_scoli = read_json_stat(file_path=SCOLI_PATH)
-
-# Join with country lookup
-df = df_input.merge(
-    right=df_countries, left_on="origin", right_on="country_name", how="left"
-).merge(right=df_ref_price, left_on="model", right_on="model", how="left")
+df = pd.read_csv(INPUT_FILE_PATH)
 
 # Clean columns
 df["price_clean"] = pd.to_numeric(df["price"].str.replace("đ", "").str.replace(".", ""))
-df["ref_price_clean"] = pd.to_numeric(df["ref_price"].str.replace(".", ""))
 df["province"] = df["location"].str.split(", ").apply(lambda x: x[-1])
 df["province_clean"] = df["province"].case_when(
     caselist=[
         (df["province"].eq("Tp Hồ Chí Minh"), "TP. Hồ Chí Minh"),
         (df["province"].eq("Bà Rịa - Vũng Tàu"), "Bà Rịa-Vũng Tàu"),
         (df["province"].eq("Thừa Thiên Huế"), "Thừa Thiên - Huế"),
+        (df["province"].eq("Thanh Hóa"), "Thanh Hoá"),
+        (df["province"].eq("Khánh Hòa"), "Khánh Hoà"),
+        (df["province"].eq("Hòa Bình"), "Hoà Bình"),
     ]
 )
 df["reg_year_clean"] = pd.to_numeric(
     df["reg_year"].case_when(caselist=[(df["reg_year"].eq("trước năm 1980"), 1980)])
 )
 
-# Reduce scale of price
-df["price_clean"] = df["price_clean"] / 1_000
-df["ref_price_clean"] = df["ref_price_clean"] / 1_000
 
-# Add age
-df["age"] = 2025 - df["reg_year_clean"]
-# Move age = 0 to age = 0.5 since the bike must have some age
-df["age_updated"] = df["age"].case_when(caselist=[(df["age"].eq(0), 0.5)])
+# Reduce scale of price and transform to log
+df["price_clean"] = df["price_clean"] / 1_000
+df["price_log"] = np.log(df["price_clean"])
+
+
+# Transform columns into suitable predictors
+# Note that this operation should be done before filter, since
+# filter will remove some indexes. Some transforms use merge, which
+# reset index, making the output becomes difficult to understand.
+df["mileage_log"] = pp.transform_mileage(df["mileage"])
+df["model_ref_price_log"] = pp.transform_model(df["model"])
+df["origin_multiplier"] = pp.transform_origin(df["origin"])
+df["province_scoli"] = pp.transform_province(df["province_clean"])
+df["age_log"] = pp.transform_reg_year(df["reg_year_clean"])
+
 
 # Filter
 
@@ -70,23 +72,9 @@ df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
 
 ## Remove outliers, unreasonable price. These are either
 ## only the bike component, or are actually another model
-df_filter = df_filter[
-    ~((df_filter["model"] == "SH") & (df_filter["price_clean"] < 3000))
-]
-
 df_transform = df_filter[
-    ~(
-        (df_filter["model"] == "SH")
-        & (df_filter["age_updated"] <= 5)
-        & (df_filter["price_clean"] < 20000)
-    )
+    ~((df_filter["model"] == "SH") & (df_filter["price_clean"] < 3_000))
 ]
-
-# Log transform
-df_transform["price_log"] = np.log(df_transform["price_clean"])
-df_transform["ref_price_log"] = np.log(df_transform["ref_price_clean"])
-df_transform["age_log"] = np.log(df_transform["age_updated"])
-df_transform["mileage_log"] = np.log(df_transform["mileage"])
 
 df_select = df_transform[
     [
@@ -94,10 +82,11 @@ df_select = df_transform[
         "age_log",
         "mileage_log",
         "model",
-        "ref_price_log",
+        "model_ref_price_log",
         "origin",
-        "country_multiplier",
+        "origin_multiplier",
         "province_clean",
+        "province_scoli",
     ]
 ]
 
@@ -114,7 +103,7 @@ age_log_poly_intercept = poly.fit_transform(df_final[["age_log"]])
 X = np.hstack(
     (
         age_log_poly_intercept,
-        df_final[["mileage_log", "country_multiplier", "ref_price_log"]],
+        df_final[["mileage_log", "origin_multiplier", "model_ref_price_log"]],
     )
 )
 
@@ -129,6 +118,23 @@ print(f"{lin_model.summary()=}")
 # plt.show()
 
 
+X2 = np.hstack(
+    (
+        age_log_poly_intercept,
+        df_final[
+            [
+                "mileage_log",
+                "origin_multiplier",
+                "model_ref_price_log",
+                "province_scoli",
+            ]
+        ],
+    )
+)
+
+lin_model2 = sm.OLS(y, X2).fit()
+print(f"{lin_model2.summary()=}")
+
 # Predict
 # Create new data for prediction
 new_data = {
@@ -139,7 +145,7 @@ new_data = {
     "province": ["Hà Nội"],
 }
 
-X_new = transform_prediction_input(input=new_data)
+X_new = pp.transform_prediction_input(input=new_data)
 
 # Predict and exponentiate the result
 predicted_price = np.exp(lin_model.predict(X_new)) * 1_000

@@ -22,7 +22,7 @@ import pytest
         (
             {"model": ["Wave", "SH", "Future"]},
             transform_model,
-            {"ref_price_clean_transform": np.log([20_000, 105_000, 32_000])},
+            {"ref_price_clean_log": np.log([20_000, 105_000, 32_000])},
         ),
         (
             {"origin": ["Hàn Quốc", "Việt Nam", "Thái Lan"]},

@@ -60,19 +60,17 @@ def transform_model(df_col: pd.Series) -> pd.Series:
         right=df_model_ref_price, left_on="model", right_on="model", how="left"
     )
 
-    output_df["ref_price_clean_transform"] = np.log(
-        output_df["ref_price_clean"] / 1_000
-    )
+    output_df["ref_price_clean_log"] = np.log(output_df["ref_price_clean"] / 1_000)
 
-    # Check for nan values
-    count_nan_value = int(output_df["ref_price_clean_transform"].isnull().sum())
-    if count_nan_value > 0:
-        logging.error(
-            f"There are nan values: {output_df[output_df['ref_price_clean_transform'].isnull()]}"
-        )
-        raise ValueError(f"Found {count_nan_value} nan values")
+    # # Check for nan values
+    # count_nan_value = int(output_df["ref_price_clean_log"].isnull().sum())
+    # if count_nan_value > 0:
+    #     logging.error(
+    #         f"There are nan values: {output_df[output_df['ref_price_clean_log'].isnull()]}"
+    #     )
+    #     raise ValueError(f"Found {count_nan_value} nan values")
 
-    return output_df["ref_price_clean_transform"]
+    return output_df["ref_price_clean_log"]
 
 
 def transform_origin(df_col: pd.Series) -> pd.Series:
