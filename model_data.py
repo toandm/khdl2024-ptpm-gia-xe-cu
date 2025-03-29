@@ -1,15 +1,25 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
-import seaborn as sns
 from utils import preprocessing as pp
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import re
+import seaborn as sns
+import statsmodels.api as sm
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
-COUNTRY_LOOKUP_PATH = "data/origin_country_multiplier.csv"
-REF_PRICE_PATH = "data/model_ref_price.csv"
-SCOLI_PATH = "data/input_scoli_2023.json"
+ORIGIN_MAPPING = {
+    "Thái Lan": ["thái", "thai lan", "xe thái"],
+    "Nhật Bản": ["nhật", "nhat ban", "xe nhật"],
+    "Indonesia": ["indonesia", "xe indo"],
+    "Ý": ["ý", "italia"],
+    "Mỹ": ["mỹ", "america", "xe mỹ"],
+    "Trung Quốc": ["trung", "xe tq", "xe trung quốc", "trung quốc"],
+    "Ấn Độ": ["ấn", "xe ấn", "an do"],
+    "Hàn Quốc": ["hàn", "xe hàn", "han quoc"],
+    "Đức": ["đức", "xe đức", "duc"],
+    "Đài Loan": ["đài", "xe đài", "dai loan"],
+}
 
 # Config pandas
 pd.options.mode.copy_on_write = True
@@ -34,6 +44,20 @@ df["reg_year_clean"] = pd.to_numeric(
 )
 
 
+# Update origin from description and title
+def update_origin(row):
+    if row["origin"].lower() in ["đang cập nhật", "nước khác"]:
+        text = f"{row['description']} {row['title']}".lower().strip()
+        for country, keywords in ORIGIN_MAPPING.items():
+            if any(re.search(rf"\b{keyword}\b", text) for keyword in keywords):
+                return country
+        return "Việt Nam"
+    else:
+        return row["origin"]
+
+
+df["origin_updated"] = df.apply(update_origin, axis=1)
+
 # Reduce scale of price and transform to log
 df["price_clean"] = df["price_clean"] / 1_000
 df["price_log"] = np.log(df["price_clean"])
@@ -45,7 +69,7 @@ df["price_log"] = np.log(df["price_clean"])
 # reset index, making the output becomes difficult to understand.
 df["mileage_log"] = pp.transform_mileage(df["mileage"])
 df["model_ref_price_log"] = pp.transform_model(df["model"])
-df["origin_multiplier"] = pp.transform_origin(df["origin"])
+df["origin_multiplier"] = pp.transform_origin(df["origin_updated"])
 df["province_scoli"] = pp.transform_province(df["province_clean"])
 df["age_log"] = pp.transform_reg_year(df["reg_year_clean"])
 
@@ -117,23 +141,6 @@ print(f"{lin_model.summary()=}")
 # )
 # plt.show()
 
-
-X2 = np.hstack(
-    (
-        age_log_poly_intercept,
-        df_final[
-            [
-                "mileage_log",
-                "origin_multiplier",
-                "model_ref_price_log",
-                "province_scoli",
-            ]
-        ],
-    )
-)
-
-lin_model2 = sm.OLS(y, X2).fit()
-print(f"{lin_model2.summary()=}")
 
 # Predict
 # Create new data for prediction
