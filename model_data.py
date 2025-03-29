@@ -4,31 +4,15 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
 import seaborn as sns
-from utils.preprocessing import read_json_stat
+from utils.preprocessing import read_json_stat, transform_prediction_input
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
-COUNTRY_LOOKUP_PATH = "data/country_price_multiplier.csv"
+COUNTRY_LOOKUP_PATH = "data/origin_country_multiplier.csv"
 REF_PRICE_PATH = "data/model_ref_price.csv"
 SCOLI_PATH = "data/input_scoli_2023.json"
 
 # Config pandas
 pd.options.mode.copy_on_write = True
-
-# Input
-INPUT = {
-    "model": "SH",
-    "reg_year": 2020,
-    "mileage": 10_000,
-    "origin": "Việt Nam",
-    "province": "Hà Nội",
-}
-
-# Input transformation
-# - model: look up against ref table and get ref price + divide 1_000 + log
-# - reg_year: get age + log + polynomial transformation
-# - mileage: log
-# - origin: look up against ref table and get multiplier
-# - province: look up against ref table and get scoli index
 
 df_input = pd.read_csv(INPUT_FILE_PATH)
 df_countries = pd.read_csv(COUNTRY_LOOKUP_PATH)
@@ -46,9 +30,9 @@ df["ref_price_clean"] = pd.to_numeric(df["ref_price"].str.replace(".", ""))
 df["province"] = df["location"].str.split(", ").apply(lambda x: x[-1])
 df["province_clean"] = df["province"].case_when(
     caselist=[
-        df["province"].eq("Tp Hồ Chí Minh", "TP. Hồ Chí Minh"),
-        df["province"].eq("Bà Rịa - Vũng Tàu", "Bà Rịa-Vũng Tàu"),
-        df["province"].eq("Thừa Thiên Huế", "Thừa Thiên - Huế"),
+        (df["province"].eq("Tp Hồ Chí Minh"), "TP. Hồ Chí Minh"),
+        (df["province"].eq("Bà Rịa - Vũng Tàu"), "Bà Rịa-Vũng Tàu"),
+        (df["province"].eq("Thừa Thiên Huế"), "Thừa Thiên - Huế"),
     ]
 )
 df["reg_year_clean"] = pd.to_numeric(
@@ -77,8 +61,8 @@ df_filter = df_filter[
 ## Keep models with over 30 offers only
 df_model_count = df_filter.groupby("model").agg(counts=("model", "count")).reset_index()
 
-df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
-# df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
+# df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
+df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
 
 ## Try keeping records with sensible mileage
@@ -147,25 +131,15 @@ print(f"{lin_model.summary()=}")
 
 # Predict
 # Create new data for prediction
-new_data = pd.DataFrame(
-    {
-        "age_log": [np.log(4)],
-        "mileage_log": [np.log(10_000)],
-        "country_multiplier": [1],
-        "ref_price_log": [np.log(105_000)],
-    }
-)
+new_data = {
+    "model": ["SH"],
+    "reg_year": [2020],
+    "mileage": [10_000],
+    "origin": ["Việt Nam"],
+    "province": ["Hà Nội"],
+}
 
-# Add polynomial features for age_log
-age_log_poly = poly.fit_transform(new_data[["age_log"]])
-
-# Combine polynomial features with other predictors
-X_new = np.hstack(
-    (
-        age_log_poly,
-        new_data[["mileage_log", "country_multiplier", "ref_price_log"]],
-    )
-)
+X_new = transform_prediction_input(input=new_data)
 
 # Predict and exponentiate the result
 predicted_price = np.exp(lin_model.predict(X_new)) * 1_000
