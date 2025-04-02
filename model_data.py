@@ -69,6 +69,7 @@ df["price_log"] = np.log(df["price_clean"])
 # reset index, making the output becomes difficult to understand.
 df["mileage_log"] = pp.transform_mileage(df["mileage"])
 df["model_ref_price_log"] = pp.transform_model(df["model"])
+# df["origin_multiplier"] = pp.transform_origin(df["origin"])
 df["origin_multiplier"] = pp.transform_origin(df["origin_updated"])
 df["province_scoli"] = pp.transform_province(df["province_clean"])
 df["age_log"] = pp.transform_reg_year(df["reg_year_clean"])
@@ -91,16 +92,16 @@ df_model_count = df_filter.groupby("model").agg(counts=("model", "count")).reset
 df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
 
-## Try keeping records with sensible mileage
-df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
-
 ## Remove outliers, unreasonable price. These are either
 ## only the bike component, or are actually another model
-df_transform = df_filter[
+df_filter = df_filter[
     ~((df_filter["model"] == "SH") & (df_filter["price_clean"] < 3_000))
 ]
 
-df_select = df_transform[
+## Try keeping records with sensible mileage
+df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
+
+df_select = df_filter[
     [
         "price_log",
         "age_log",
@@ -127,7 +128,14 @@ age_log_poly_intercept = poly.fit_transform(df_final[["age_log"]])
 X = np.hstack(
     (
         age_log_poly_intercept,
-        df_final[["mileage_log", "origin_multiplier", "model_ref_price_log"]],
+        df_final[
+            [
+                "mileage_log",
+                "origin_multiplier",
+                "model_ref_price_log",
+                # "province_scoli",
+            ]
+        ],
     )
 )
 
@@ -146,7 +154,7 @@ print(f"{lin_model.summary()=}")
 # Create new data for prediction
 new_data = {
     "model": ["SH"],
-    "reg_year": [2020],
+    "reg_year": [2021],
     "mileage": [10_000],
     "origin": ["Việt Nam"],
     "province": ["Hà Nội"],

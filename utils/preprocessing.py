@@ -153,7 +153,7 @@ def transform_prediction_input(input: dict) -> np.ndarray:
     df["mileage_log"] = transform_mileage(df_col=df["mileage"])
     df["origin_multiplier"] = transform_origin(df_col=df["origin"])
     df["model_ref_price_log"] = transform_model(df_col=df["model"])
-    # df["province_scoli"] = transform_province(df_col=df["province"])
+    df["province_scoli"] = transform_province(df_col=df["province"])
 
     # Polynomial for age_log with intercept
     poly = PolynomialFeatures(degree=3)
