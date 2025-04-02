@@ -85,12 +85,22 @@ df_filter = df_filter[
     df_filter["price_clean"].between(1_000, 600_000, inclusive="neither")
 ]
 
-## Keep models with over 30 offers only
+## START - USE THIS PART to get reference price for all bikes
+# ## Get rows with reference price only
+# df_filter = df_filter[df_filter["model_ref_price_log"].notnull()]
+
+## END
+
+## START - USE THIS PART to get reference price for top 10 bikes with most posts
+
+# Keep models with over 30 offers only
 df_model_count = df_filter.groupby("model").agg(counts=("model", "count")).reset_index()
 
 # df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
 df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
+
+## END
 
 ## Remove outliers, unreasonable price. These are either
 ## only the bike component, or are actually another model

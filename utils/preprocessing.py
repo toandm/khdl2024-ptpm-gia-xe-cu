@@ -87,6 +87,29 @@ def transform_model(df_col: pd.Series) -> pd.Series:
     # Join with dataframe
     df = df_col.to_frame()
     df["model"] = df.iloc[:, 0]
+
+    # # Check join
+    # # Get unique input models
+    # df_input_distinct_models = pd.DataFrame(df["model"].unique())
+    # df_input_distinct_models["model"] = df_input_distinct_models.iloc[:, 0]
+    # # Join against ref models
+    # df_merge = df_input_distinct_models.merge(
+    #     right=df_model_ref_price, left_on="model", right_on="model", how="left"
+    # )
+    # # Check not joined values
+    # not_joined_list = sorted(df_merge[df_merge["price_avg"].isnull()]["model"].unique())
+
+    # # Check what model in top 20 doesn't have ref price, filter out 'Dòng khác'
+    # df_filter = df[~df["model"].isin(["Dòng khác", "dòng khác"])]
+    # df_model_count = (
+    #     df_filter.groupby("model").agg(counts=("model", "count")).reset_index()
+    # )
+    # df_input_top_20 = df_model_count.sort_values(by="counts", ascending=False).head(20)
+    # top_20_not_in_list = df_input_top_20[df_input_top_20["model"].isin(not_joined_list)]
+
+    # # Check if value is in full list
+    # df_variants[df_variants["model_name"].str.contains("blade", case=False)]
+
     output_df = df.merge(
         right=df_model_ref_price, left_on="model", right_on="model", how="left"
     )
