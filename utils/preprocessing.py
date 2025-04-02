@@ -48,18 +48,41 @@ def transform_mileage(df_col: pd.Series) -> pd.Series:
 def transform_model(df_col: pd.Series) -> pd.Series:
     # Get reference value
     MODEL_REF_PRICE_PATH = "data/model_ref_price_full.csv"
-    df_model_ref_price = pd.read_csv(MODEL_REF_PRICE_PATH)
+    MODEL_REF_EXTRA_PRICE_PATH = "data/model_ref_price_extra.csv"
+    df_variants = pd.read_csv(MODEL_REF_PRICE_PATH)
+    df_model_extra = pd.read_csv(MODEL_REF_EXTRA_PRICE_PATH)
     # df_model_ref_price["ref_price_clean"] = pd.to_numeric(
     #     df_model_ref_price["ref_price"].str.replace(".", "")
     # )
 
-    # Remove null price
-    df_model_ref_price.dropna(subset="price_min", inplace=True)
+    # Filter out null price
+    df_variants.dropna(subset="price_min", inplace=True)
 
     # Get mean price
-    df_model_ref_price["price_avg"] = (
-        df_model_ref_price["price_min"] + df_model_ref_price["price_max"]
-    ) / 2
+    df_variants["price_avg"] = (df_variants["price_min"] + df_variants["price_max"]) / 2
+
+    # Get model. Resolve case with 'Air Blade'
+    df_variants["model_original"] = (
+        df_variants["model_name"].str.split().apply(lambda x: x[0])
+    )
+    df_variants["model"] = df_variants["model_original"].case_when(
+        caselist=[
+            (df_variants["model_name"].str.contains("Air Blade"), "Air Blade"),
+            (df_variants["model_name"].str.contains("SH Mode"), "SH Mode"),
+            (df_variants["model_name"].str.contains("Super Cub"), "Cub"),
+            (df_variants["model_name"].str.contains("Winner X"), "Winner X"),
+            (df_variants["brand_name"].eq("Vespa"), "Vespa"),
+        ]
+    )
+
+    # Get average price by model
+    df_model_ref_price_original = df_variants.groupby(by="model", as_index=False).agg(
+        {"price_avg": "mean"}
+    )
+    df_model_ref_price = pd.concat([df_model_ref_price_original, df_model_extra])
+    df_model_ref_price["price_avg_log"] = np.log(
+        df_model_ref_price["price_avg"] * 1_000
+    )
 
     # Join with dataframe
     df = df_col.to_frame()
@@ -67,8 +90,6 @@ def transform_model(df_col: pd.Series) -> pd.Series:
     output_df = df.merge(
         right=df_model_ref_price, left_on="model", right_on="model", how="left"
     )
-
-    output_df["ref_price_clean_log"] = np.log(output_df["ref_price_clean"] / 1_000)
 
     # # Check for nan values
     # count_nan_value = int(output_df["ref_price_clean_log"].isnull().sum())
@@ -78,7 +99,7 @@ def transform_model(df_col: pd.Series) -> pd.Series:
     #     )
     #     raise ValueError(f"Found {count_nan_value} nan values")
 
-    return output_df["ref_price_clean_log"]
+    return output_df["price_avg_log"]
 
 
 def transform_origin(df_col: pd.Series) -> pd.Series:

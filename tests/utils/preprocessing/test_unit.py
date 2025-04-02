@@ -20,9 +20,9 @@ import pytest
             {"mileage_log": np.log([1, 2, 3])},
         ),
         (
-            {"model": ["Wave", "SH", "Future"]},
+            {"model": ["Dream", "Mio", "Nouvo"]},
             transform_model,
-            {"ref_price_clean_log": np.log([20_000, 105_000, 32_000])},
+            {"price_avg_log": np.log([15_000, 26_000, 35_000])},
         ),
         (
             {"origin": ["Hàn Quốc", "Việt Nam", "Thái Lan"]},
