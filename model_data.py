@@ -87,17 +87,18 @@ df_filter = df_filter[
 
 ## START - USE THIS PART to get reference price for all bikes
 # ## Get rows with reference price only
-# df_filter = df_filter[df_filter["model_ref_price_log"].notnull()]
+df_filter = df_filter[df_filter["model_ref_price_log"].notnull()]
 
 ## END
 
-## START - USE THIS PART to get reference price for top 10 bikes with most posts
 
-# Keep models with over 30 offers only
+# Models with over 30 offers only
 df_model_count = df_filter.groupby("model").agg(counts=("model", "count")).reset_index()
 
-# df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
-df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
+## START - USE THIS PART to get reference price for top 10 bikes with most posts
+
+df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
+# df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(30)
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
 
 ## END
@@ -108,10 +109,13 @@ df_filter = df_filter[
     ~((df_filter["model"] == "SH") & (df_filter["price_clean"] < 3_000))
 ]
 
+df_filter = df_filter[~df_filter["model"].isin(["Vespa", "Cub", "R", "Dream"])]
+
+
 ## Try keeping records with sensible mileage
 df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
 
-df_select = df_filter[
+df_final = df_filter[
     [
         "price_log",
         "age_log",
@@ -124,8 +128,6 @@ df_select = df_filter[
         "province_scoli",
     ]
 ]
-
-df_final = df_select
 
 # Linear regression models
 y = df_final["price_log"]
@@ -159,13 +161,68 @@ print(f"{lin_model.summary()=}")
 # )
 # plt.show()
 
+# Diagnose influential points
+# Ref: https://towardsdatascience.com/linear-regression-models-and-influential-points-4ee844adac6d/
+# df_influence = lin_model.get_influence().summary_frame()
+# # Join on index
+# df_with_influence = df_filter.join(other=df_influence)
+
+# # Number of observations
+# n = len(df_influence)
+# # Predictors
+# k = 6
+# cutoff_leverage = ((2 * k) + 2) / n
+# cutoff_cooks: float = df_influence["cooks_d"].mean() * 3
+
+# # Values with high hat values
+# df_high_leverage = df_with_influence[df_with_influence["hat_diag"] >= cutoff_leverage]
+# df_high_cooks_d = df_with_influence[df_with_influence["cooks_d"] >= cutoff_cooks]
+
+# # High hat values count group by model
+# df_high_leverage.groupby("model")["hat_diag"].count()
+# df_model_high_leverage_count = (
+#     df_high_leverage.groupby("model")["hat_diag"]
+#     .count()
+#     .sort_values(ascending=False)
+#     .reset_index()
+# )
+
+# df_high_cooks_d.groupby("model")["cooks_d"].count()
+# df_model_high_cook_count = (
+#     df_high_cooks_d.groupby("model")["cooks_d"]
+#     .count()
+#     .sort_values(ascending=False)
+#     .reset_index()
+# )
+
+# df_model_count = (
+#     df_filter.groupby("model")["price_clean"]
+#     .agg(counts="count")
+#     .sort_values(by="counts", ascending=False)
+#     .reset_index()
+# )
+# df_count_join = df_model_count.merge(
+#     right=df_model_high_leverage_count, left_on="model", right_on="model", how="left"
+# ).merge(right=df_model_high_cook_count, left_on="model", right_on="model", how="left")
+# df_count_join.fillna(0, inplace=True)
+# df_count_join["high_leverage_pct"] = df_count_join["hat_diag"] / df_count_join["counts"]
+# df_count_join["high_cook_pct"] = df_count_join["cooks_d"] / df_count_join["counts"]
+# df_count_join.sort_values("high_leverage_pct", ascending=False).head(10)
 
 # Predict
 # Create new data for prediction
+# new_data = {
+#     "model": ["SH"],
+#     "reg_year": [2021],
+#     "mileage": [10_000],
+#     "origin": ["Việt Nam"],
+#     "province": ["Hà Nội"],
+# }
+
 new_data = {
-    "model": ["SH"],
-    "reg_year": [2021],
-    "mileage": [10_000],
+    "model": ["Sirius"],
+    "reg_year": [2019],
+    "mileage": [66_000],
     "origin": ["Việt Nam"],
     "province": ["Hà Nội"],
 }
@@ -173,7 +230,7 @@ new_data = {
 X_new = pp.transform_prediction_input(input=new_data)
 
 # Predict and exponentiate the result
-predicted_price = np.exp(lin_model.predict(X_new)) * 1_000
-print(f"{predicted_price[0]=: ,}")
+predicted_price = round(np.exp(lin_model.predict(X_new))[0]) * 1_000
+print(f"{predicted_price=: ,}")
 
 d = 1
