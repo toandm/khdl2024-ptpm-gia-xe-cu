@@ -1,42 +1,79 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
+from utils import preprocessing as pp
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import re
 import seaborn as sns
+import statsmodels.api as sm
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
-COUNTRY_LOOKUP_PATH = "data/country_price_multiplier.csv"
-REF_PRICE_PATH = "data/model_ref_price.csv"
+ORIGIN_MAPPING = {
+    "Thái Lan": ["thái", "thai lan", "xe thái"],
+    "Nhật Bản": ["nhật", "nhat ban", "xe nhật"],
+    "Indonesia": ["indonesia", "xe indo"],
+    "Ý": ["ý", "italia"],
+    "Mỹ": ["mỹ", "america", "xe mỹ"],
+    "Trung Quốc": ["trung", "xe tq", "xe trung quốc", "trung quốc"],
+    "Ấn Độ": ["ấn", "xe ấn", "an do"],
+    "Hàn Quốc": ["hàn", "xe hàn", "han quoc"],
+    "Đức": ["đức", "xe đức", "duc"],
+    "Đài Loan": ["đài", "xe đài", "dai loan"],
+}
 
 # Config pandas
 pd.options.mode.copy_on_write = True
 
-df_input = pd.read_csv(INPUT_FILE_PATH)
-df_countries = pd.read_csv(COUNTRY_LOOKUP_PATH)
-df_ref_price = pd.read_csv(REF_PRICE_PATH)
-
-# Join with country lookup
-df = df_input.merge(
-    right=df_countries, left_on="origin", right_on="country_name", how="left"
-).merge(right=df_ref_price, left_on="model", right_on="model", how="left")
+df = pd.read_csv(INPUT_FILE_PATH)
 
 # Clean columns
 df["price_clean"] = pd.to_numeric(df["price"].str.replace("đ", "").str.replace(".", ""))
-df["ref_price_clean"] = pd.to_numeric(df["ref_price"].str.replace(".", ""))
-df["location_clean"] = df["location"].str.split(", ").apply(lambda x: x[-1])
+df["province"] = df["location"].str.split(", ").apply(lambda x: x[-1])
+df["province_clean"] = df["province"].case_when(
+    caselist=[
+        (df["province"].eq("Tp Hồ Chí Minh"), "TP. Hồ Chí Minh"),
+        (df["province"].eq("Bà Rịa - Vũng Tàu"), "Bà Rịa-Vũng Tàu"),
+        (df["province"].eq("Thừa Thiên Huế"), "Thừa Thiên - Huế"),
+        (df["province"].eq("Thanh Hóa"), "Thanh Hoá"),
+        (df["province"].eq("Khánh Hòa"), "Khánh Hoà"),
+        (df["province"].eq("Hòa Bình"), "Hoà Bình"),
+    ]
+)
 df["reg_year_clean"] = pd.to_numeric(
     df["reg_year"].case_when(caselist=[(df["reg_year"].eq("trước năm 1980"), 1980)])
 )
 
-# Reduce scale of price
-df["price_clean"] = df["price_clean"] / 1_000
-df["ref_price_clean"] = df["ref_price_clean"] / 1_000
 
-# Add age
-df["age"] = 2025 - df["reg_year_clean"]
-# Move age = 0 to age = 0.5 since the bike must have some age
-df["age_updated"] = df["age"].case_when(caselist=[(df["age"].eq(0), 0.5)])
+# Update origin from description and title
+def update_origin(row):
+    if row["origin"].lower() in ["đang cập nhật", "nước khác"]:
+        text = f"{row['description']} {row['title']}".lower().strip()
+        for country, keywords in ORIGIN_MAPPING.items():
+            if any(re.search(rf"\b{keyword}\b", text) for keyword in keywords):
+                return country
+        return "Việt Nam"
+    else:
+        return row["origin"]
+
+
+df["origin_updated"] = df.apply(update_origin, axis=1)
+
+# Reduce scale of price and transform to log
+df["price_clean"] = df["price_clean"] / 1_000
+df["price_log"] = np.log(df["price_clean"])
+
+
+# Transform columns into suitable predictors
+# Note that this operation should be done before filter, since
+# filter will remove some indexes. Some transforms use merge, which
+# reset index, making the output becomes difficult to understand.
+df["mileage_log"] = pp.transform_mileage(df["mileage"])
+df["model_ref_price_log"] = pp.transform_model(df["model"])
+# df["origin_multiplier"] = pp.transform_origin(df["origin"])
+df["origin_multiplier"] = pp.transform_origin(df["origin_updated"])
+df["province_scoli"] = pp.transform_province(df["province_clean"])
+df["age_log"] = pp.transform_reg_year(df["reg_year_clean"])
+
 
 # Filter
 
@@ -48,146 +85,152 @@ df_filter = df_filter[
     df_filter["price_clean"].between(1_000, 600_000, inclusive="neither")
 ]
 
-## Keep models with over 30 offers only
+## START - USE THIS PART to get reference price for all bikes
+# ## Get rows with reference price only
+df_filter = df_filter[df_filter["model_ref_price_log"].notnull()]
+
+## END
+
+
+# Models with over 30 offers only
 df_model_count = df_filter.groupby("model").agg(counts=("model", "count")).reset_index()
 
-# df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
-df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(10)
+## START - USE THIS PART to get reference price for top 10 bikes with most posts
+
+df_model_over_n = df_model_count[df_model_count["counts"] >= 30]
+# df_model_over_n = df_model_count.sort_values(by="counts", ascending=False).head(30)
 df_filter = df_filter[df_filter["model"].isin(df_model_over_n["model"])]
 
+## END
+
+## Remove outliers, unreasonable price. These are either
+## only the bike component, or are actually another model
+df_filter = df_filter[
+    ~((df_filter["model"] == "SH") & (df_filter["price_clean"] < 3_000))
+]
+
+df_filter = df_filter[~df_filter["model"].isin(["Vespa", "Cub", "R", "Dream"])]
+
+
 ## Try keeping records with sensible mileage
-df_transform = df_filter[df_filter["mileage"].between(500, 900_000)]
+df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
 
-# Log transform
-df_transform["price_log"] = np.log(df_transform["price_clean"])
-df_transform["ref_price_log"] = np.log(df_transform["ref_price_clean"])
-df_transform["age_log"] = np.log(df_transform["age_updated"])
-df_transform["mileage_log"] = np.log(df_transform["mileage"])
-
-df_select = df_transform[
+df_final = df_filter[
     [
         "price_log",
         "age_log",
         "mileage_log",
         "model",
-        "ref_price_log",
+        "model_ref_price_log",
         "origin",
-        "country_multiplier",
-        "location_clean",
+        "origin_multiplier",
+        "province_clean",
+        "province_scoli",
     ]
 ]
 
-df_final = df_select
-
-
-# Plot to check for linearity
-# plt.scatter(df_final["age_log"], df_final["price_log"])
-# plt.show()
-
 # Linear regression models
-X = sm.add_constant(df_final["age_log"])
 y = df_final["price_log"]
-m1 = sm.OLS(endog=y, exog=X).fit()
-print(f"{m1.summary()=}")
-# plt.scatter(df_final["age_log"], df_final["price_log"])
-# plt.plot(df_final["age_log"], m1.fittedvalues, "r.")
-# plt.show()
 
-# Polynomial regression models
+# Polynomial for age_log
 poly = PolynomialFeatures(degree=3)
-X_poly = poly.fit_transform(df_final[["age_log"]])
-
-# Get orthogonal polynomial like R
-# Ref: https://stackoverflow.com/questions/41317127/python-equivalent-to-r-poly-function
-X_ortho_poly = np.linalg.qr(X_poly)[0][:, 1:]
-X_ortho_poly_intecept = sm.add_constant(X_ortho_poly)
-m3 = sm.OLS(y, X_ortho_poly_intecept).fit()
-print(f"{m3.summary()=}")
-# plt.scatter(df_final["age_log"], df_final["price_log"])
-# plt.plot(df_final["age_log"], m3.fittedvalues, "r.")
-# plt.show()
+age_log_poly_intercept = poly.fit_transform(df_final[["age_log"]])
 
 # Polynomial regression with mileage
-X_poly_mil = np.hstack((X_ortho_poly_intecept, df_final[["mileage_log"]]))
-m3_mil = sm.OLS(y, X_poly_mil).fit()
-print(f"{m3_mil.summary()=}")
-
-# # Check standardized residual against fitted value
-# sns.regplot(
-#     x=m3_mil.fittedvalues,
-#     y=m3_mil.get_influence().resid_studentized_internal,
-#     lowess=True,
-#     line_kws={"color": "red"},
-# )
-# plt.show()
-
-# Polynomial regression with mileage and country multiplier
-X_poly_mil_country = np.hstack((X_poly_mil, df_final[["country_multiplier"]]))
-m4 = sm.OLS(y, X_poly_mil_country).fit()
-print(f"{m4.summary()=}")
-# sns.regplot(
-#     x=m4.fittedvalues,
-#     y=m4.get_influence().resid_studentized_internal,
-#     lowess=True,
-#     line_kws={"color": "red"},
-# )
-# plt.show()
-
-# Polynomial regression with mileage, country multiplier, and ref price
-X_poly_mil_country_ref = np.hstack((X_poly_mil_country, df_final[["ref_price_log"]]))
-m5 = sm.OLS(y, X_poly_mil_country_ref).fit()
-print(f"{m5.summary()=}")
-# sns.regplot(
-#     x=m5.fittedvalues,
-#     y=m5.get_influence().resid_studentized_internal,
-#     lowess=True,
-#     line_kws={"color": "red"},
-# )
-# plt.show()
-
-# AIC and BIC
-print(
+X = np.hstack(
     (
-        m3.aic,
-        m3_mil.aic,
-        m4.aic,
-        m5.aic,
+        age_log_poly_intercept,
+        df_final[
+            [
+                "mileage_log",
+                "origin_multiplier",
+                "model_ref_price_log",
+                # "province_scoli",
+            ]
+        ],
     )
 )
 
-print(
-    (
-        m3.bic,
-        m3_mil.bic,
-        m4.bic,
-        m5.bic,
-    )
-)
+lin_model = sm.OLS(y, X).fit()
+print(f"{lin_model.summary()=}")
+# sns.regplot(
+#     x=lin_model.fittedvalues,
+#     y=lin_model.get_influence().resid_studentized_internal,
+#     lowess=True,
+#     line_kws={"color": "red"},
+# )
+# plt.show()
+
+# Diagnose influential points
+# Ref: https://towardsdatascience.com/linear-regression-models-and-influential-points-4ee844adac6d/
+# df_influence = lin_model.get_influence().summary_frame()
+# # Join on index
+# df_with_influence = df_filter.join(other=df_influence)
+
+# # Number of observations
+# n = len(df_influence)
+# # Predictors
+# k = 6
+# cutoff_leverage = ((2 * k) + 2) / n
+# cutoff_cooks: float = df_influence["cooks_d"].mean() * 3
+
+# # Values with high hat values
+# df_high_leverage = df_with_influence[df_with_influence["hat_diag"] >= cutoff_leverage]
+# df_high_cooks_d = df_with_influence[df_with_influence["cooks_d"] >= cutoff_cooks]
+
+# # High hat values count group by model
+# df_high_leverage.groupby("model")["hat_diag"].count()
+# df_model_high_leverage_count = (
+#     df_high_leverage.groupby("model")["hat_diag"]
+#     .count()
+#     .sort_values(ascending=False)
+#     .reset_index()
+# )
+
+# df_high_cooks_d.groupby("model")["cooks_d"].count()
+# df_model_high_cook_count = (
+#     df_high_cooks_d.groupby("model")["cooks_d"]
+#     .count()
+#     .sort_values(ascending=False)
+#     .reset_index()
+# )
+
+# df_model_count = (
+#     df_filter.groupby("model")["price_clean"]
+#     .agg(counts="count")
+#     .sort_values(by="counts", ascending=False)
+#     .reset_index()
+# )
+# df_count_join = df_model_count.merge(
+#     right=df_model_high_leverage_count, left_on="model", right_on="model", how="left"
+# ).merge(right=df_model_high_cook_count, left_on="model", right_on="model", how="left")
+# df_count_join.fillna(0, inplace=True)
+# df_count_join["high_leverage_pct"] = df_count_join["hat_diag"] / df_count_join["counts"]
+# df_count_join["high_cook_pct"] = df_count_join["cooks_d"] / df_count_join["counts"]
+# df_count_join.sort_values("high_leverage_pct", ascending=False).head(10)
 
 # Predict
 # Create new data for prediction
-new_data = pd.DataFrame(
-    {
-        "age_log": [np.log(4)],
-        "mileage_log": [np.log(10_000)],
-        "country_multiplier": [1],
-        "ref_price_log": [np.log(105_000)],
-    }
-)
+# new_data = {
+#     "model": ["SH"],
+#     "reg_year": [2021],
+#     "mileage": [10_000],
+#     "origin": ["Việt Nam"],
+#     "province": ["Hà Nội"],
+# }
 
-# Add polynomial features for age_log
-age_log_poly = poly.fit_transform(new_data[["age_log"]])
+new_data = {
+    "model": ["Sirius"],
+    "reg_year": [2019],
+    "mileage": [66_000],
+    "origin": ["Việt Nam"],
+    "province": ["Hà Nội"],
+}
 
-# Combine polynomial features with other predictors
-X_new = np.hstack(
-    (
-        age_log_poly,
-        new_data[["mileage_log", "country_multiplier", "ref_price_log"]],
-    )
-)
+X_new = pp.transform_prediction_input(input=new_data)
 
 # Predict and exponentiate the result
-predicted_price = np.exp(m5.predict(X_new)) * 1_000
-print(f"{predicted_price[0]=: ,}")
+predicted_price = round(np.exp(lin_model.predict(X_new))[0]) * 1_000
+print(f"{predicted_price=: ,}")
 
 d = 1
