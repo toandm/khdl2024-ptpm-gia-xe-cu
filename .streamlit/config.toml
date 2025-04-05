@@ -1,0 +1,16 @@
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+serverAddress = "localhost"
+serverPort = 8501
+
+[theme]
+base = "light"
+
+[runner]
+# Quan trọng - thông báo cho Streamlit chỉ chạy app.py
+# thay vì tìm tất cả các file .py
+magicEnabled = false
