@@ -6,6 +6,7 @@ import pandas as pd
 import re
 import seaborn as sns
 import statsmodels.api as sm
+from sklearn.model_selection import train_test_split
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
 ORIGIN_MAPPING = {
@@ -115,32 +116,18 @@ df_filter = df_filter[~df_filter["model"].isin(["Vespa", "Cub", "R", "Dream"])]
 ## Try keeping records with sensible mileage
 df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
 
-df_final = df_filter[
-    [
-        "price_log",
-        "age_log",
-        "mileage_log",
-        "model",
-        "model_ref_price_log",
-        "origin",
-        "origin_multiplier",
-        "province_clean",
-        "province_scoli",
-    ]
-]
-
 # Linear regression models
-y = df_final["price_log"]
+y = df_filter["price_log"]
 
 # Polynomial for age_log
 poly = PolynomialFeatures(degree=3)
-age_log_poly_intercept = poly.fit_transform(df_final[["age_log"]])
+age_log_poly_intercept = poly.fit_transform(df_filter[["age_log"]])
 
 # Polynomial regression with mileage
 X = np.hstack(
     (
         age_log_poly_intercept,
-        df_final[
+        df_filter[
             [
                 "mileage_log",
                 "origin_multiplier",
