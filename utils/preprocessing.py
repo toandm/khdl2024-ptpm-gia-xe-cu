@@ -227,3 +227,15 @@ def transform_prediction_input(input: dict) -> np.ndarray:
     )
 
     return X
+
+
+def mean_absolute_percentage_error(y_true, y_pred, axis: int = None):
+    """
+    Ref:
+    - https://stackoverflow.com/questions/55996319/my-mape-mean-absolute-percentage-error-function-returns-a-number-over-100-when
+    - https://www.statsmodels.org/dev/_modules/statsmodels/tools/eval_measures.html#meanabs
+
+    Returns: percentage without multiplying with 100
+    """
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true), axis=axis)

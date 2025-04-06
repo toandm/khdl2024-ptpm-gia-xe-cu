@@ -7,6 +7,7 @@ import re
 import seaborn as sns
 import statsmodels.api as sm
 from sklearn.model_selection import train_test_split
+from statsmodels.tools.eval_measures import meanabs, mse, rmse
 
 INPUT_FILE_PATH = "data/input_xe_cu.csv"
 ORIGIN_MAPPING = {
@@ -117,7 +118,7 @@ df_filter = df_filter[~df_filter["model"].isin(["Vespa", "Cub", "R", "Dream"])]
 df_filter = df_filter[df_filter["mileage"].between(500, 900_000)]
 
 # Linear regression models
-y = df_filter["price_log"]
+Y = df_filter["price_log"]
 
 # Polynomial for age_log
 poly = PolynomialFeatures(degree=3)
@@ -138,8 +139,28 @@ X = np.hstack(
     )
 )
 
-lin_model = sm.OLS(y, X).fit()
+# Split train test data
+X_train, X_test, Y_train, Y_test = train_test_split(
+    X, Y, test_size=0.20, random_state=42
+)
+
+
+lin_model = sm.OLS(Y_train, X_train).fit()
 print(f"{lin_model.summary()=}")
+
+# Evaluate prediction
+Y_pred = lin_model.predict(X_test)
+pred_mae = meanabs(Y_test, Y_pred)
+pred_mse = mse(Y_test, Y_pred)
+pred_rmse = rmse(Y_test, Y_pred)
+r_squared = lin_model.rsquared
+pred_mape = pp.mean_absolute_percentage_error(y_true=Y_test, y_pred=Y_pred)
+print(f"{pred_mae=}")
+print(f"{pred_mse=}")
+print(f"{pred_rmse=}")
+print(f"{r_squared=}")
+print(f"{pred_mape * 100=: .2f}%")
+
 # sns.regplot(
 #     x=lin_model.fittedvalues,
 #     y=lin_model.get_influence().resid_studentized_internal,
