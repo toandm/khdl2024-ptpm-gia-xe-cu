@@ -72,8 +72,8 @@ def transform_model(df_col: pd.Series) -> pd.Series:
     Chuyển đổi đặc trưng model bằng cách ánh xạ đến giá tham khảo
     """
     # Lấy giá trị tham khảo
-    MODEL_REF_PRICE_PATH = "data/processed/model_ref_price_full.csv"
-    MODEL_REF_EXTRA_PRICE_PATH = "data/processed/model_ref_price_extra.csv"
+    MODEL_REF_PRICE_PATH = "data/raw/model_ref_price_full.csv"
+    MODEL_REF_EXTRA_PRICE_PATH = "data/raw/model_ref_price_extra.csv"
     df_variants = pd.read_csv(MODEL_REF_PRICE_PATH)
     df_model_extra = pd.read_csv(MODEL_REF_EXTRA_PRICE_PATH)
 
@@ -122,7 +122,7 @@ def transform_origin(df_col: pd.Series) -> pd.Series:
     Chuyển đổi đặc trưng xuất xứ bằng cách ánh xạ đến hệ số quốc gia
     """
     # Lấy giá trị tham khảo
-    COUNTRY_MULTIPLIER_PATH = "data/processed/origin_country_multiplier.csv"
+    COUNTRY_MULTIPLIER_PATH = "data/raw/origin_country_multiplier.csv"
     df_countries = pd.read_csv(COUNTRY_MULTIPLIER_PATH)
 
     # Join với dataframe
@@ -148,7 +148,7 @@ def transform_province(df_col: pd.Series) -> pd.Series:
     Chuyển đổi đặc trưng tỉnh thành bằng cách ánh xạ đến giá trị SCOLI
     """
     # Lấy giá trị tham khảo
-    SCOLI_PATH = "data/processed/input_scoli_2023.json"
+    SCOLI_PATH = "data/raw/input_scoli_2023.json"
     df_scoli = read_json_stat(file_path=SCOLI_PATH)
     df_scoli.columns = ["province", "year", "province_scoli"]
 

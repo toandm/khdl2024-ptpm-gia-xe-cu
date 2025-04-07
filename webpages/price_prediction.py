@@ -405,20 +405,6 @@ def process_prediction(brand, model, variant, year, km_driven, condition, origin
                 st.progress(result['confidence'])
                 st.write(f"Độ tin cậy: {int(result['confidence']*100)}%")
             
-            # Hiển thị thông số xe
-            st.subheader("Thông số xe")
-            info_df = pd.DataFrame({
-                'Thông số': ['Thương hiệu', 'Mẫu xe', 'Năm đăng ký', 'Số km đã đi', 'Tình trạng', 'Xuất xứ'],
-                'Giá trị': [
-                    brand, 
-                    f"{model} {variant if variant else ''}".strip(), 
-                    str(year), 
-                    f"{km_driven:,} km", 
-                    condition, 
-                    origin
-                ]
-            })
-            st.table(info_df)
             
             # Tìm và hiển thị các bài đăng tương tự
             with st.spinner("Đang tìm kiếm các bài đăng tương tự..."):
@@ -516,7 +502,6 @@ def display_similar_listings(similar_listings, predicted_price):
             col1, col2 = st.columns([3, 1])
             with col1:
                 st.markdown(f"**{row['title']}**")
-                st.text(row["short_desc"])
                 st.text(f"📍 {row['location']}")
             with col2:
                 st.markdown(f"### {row['price_millions']} triệu")

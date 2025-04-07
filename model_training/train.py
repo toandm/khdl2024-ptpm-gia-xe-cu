@@ -166,7 +166,7 @@ def main():
     """Hàm chính để huấn luyện mô hình dự đoán giá xe máy"""
     # Phân tích đối số dòng lệnh
     parser = argparse.ArgumentParser(description='Huấn luyện mô hình dự đoán giá xe máy')
-    parser.add_argument('--data', default='data/processed/input_xe_cu.csv',
+    parser.add_argument('--data', default='data/raw/chotot_data.csv',
                         help='Đường dẫn đến dữ liệu huấn luyện')
     parser.add_argument('--output', default='models/',
                         help='Đường dẫn để lưu mô hình đã huấn luyện')

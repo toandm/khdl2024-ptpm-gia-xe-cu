@@ -80,51 +80,36 @@ def clean_mileage(mileage_str):
         logger.warning(f"Không thể chuyển đổi số km: {mileage_str}")
         return None
 
-def normalize_origin(origin_str):
+def normalize_origin(row):
     """
-    Chuẩn hóa xuất xứ
-    
-    Args:
-        origin_str: Chuỗi xuất xứ
-        
-    Returns:
-        Chuỗi xuất xứ đã chuẩn hóa
+    Cập nhật xuất xứ dựa trên mô tả và tiêu đề
     """
-    if pd.isna(origin_str) or origin_str.lower() in ["đang cập nhật", "nước khác"]:
-        return "Việt Nam"  # Giả định mặc định là Việt Nam
-    
-    # Ánh xạ các tên gọi khác nhau
-    origin_mapping = {
-        "nhat ban": "Nhật Bản",
-        "nhat": "Nhật Bản",
-        "japan": "Nhật Bản",
-        "thai lan": "Thái Lan",
-        "thai": "Thái Lan",
-        "viet nam": "Việt Nam",
-        "vn": "Việt Nam",
-        "vietnam": "Việt Nam",
-        "taiwan": "Đài Loan",
-        "dai loan": "Đài Loan",
-        "china": "Trung Quốc",
-        "trung quoc": "Trung Quốc",
-        "an do": "Ấn Độ",
-        "an": "Ấn Độ",
-        "india": "Ấn Độ",
-        "duc": "Đức",
-        "germany": "Đức",
-        "italia": "Ý",
-        "italy": "Ý",
-        "han quoc": "Hàn Quốc",
-        "korea": "Hàn Quốc",
+    ORIGIN_MAPPING = {
+        "Thái Lan": ["thái", "thai lan", "xe thái"],
+        "Nhật Bản": ["nhật", "nhat ban", "xe nhật"],
+        "Indonesia": ["indonesia", "xe indo"],
+        "Ý": ["ý", "italia"],
+        "Mỹ": ["mỹ", "america", "xe mỹ"],
+        "Trung Quốc": ["trung", "xe tq", "xe trung quốc", "trung quốc"],
+        "Ấn Độ": ["ấn", "xe ấn", "an do"],
+        "Hàn Quốc": ["hàn", "xe hàn", "han quoc"],
+        "Đức": ["đức", "xe đức", "duc"],
+        "Đài Loan": ["đài", "xe đài", "dai loan"],
     }
-    
-    # Chuẩn hóa
-    origin_lower = origin_str.lower().strip()
-    for key, value in origin_mapping.items():
-        if key in origin_lower:
-            return value
-    
-    return origin_str
+    if pd.isna(row["origin"]) or row["origin"].lower() in ["đang cập nhật", "nước khác"]:
+        text = ""
+        if "description" in row and not pd.isna(row["description"]):
+            text += str(row["description"])
+        if "title" in row and not pd.isna(row["title"]):
+            text += " " + str(row["title"])
+        text = text.lower().strip()
+        
+        for country, keywords in ORIGIN_MAPPING.items():
+            if any(re.search(rf"\b{keyword}\b", text) for keyword in keywords):
+                return country
+        return "Việt Nam"
+    else:
+        return row["origin"]
 
 def extract_province(location_str):
     """
@@ -489,7 +474,7 @@ def filter_raw_data(csv_file_path, output_file_path=None):
         df["mileage_numeric"] = df["mileage"].apply(clean_mileage)
         
         # Chuẩn hóa xuất xứ
-        df["origin_normalized"] = df["origin"].apply(normalize_origin)
+        df["origin_normalized"] = df.apply(normalize_origin, axis=1)
         
         # Trích xuất tỉnh/thành phố
         df["province"] = df["location"].apply(extract_province)
@@ -531,25 +516,28 @@ def filter_raw_data(csv_file_path, output_file_path=None):
             df["mileage_numeric"].notna()
         ]
         
-        # Lọc ra các mức giá hợp lý (từ 1 triệu đến 500 triệu)
-        df_filtered = df_filtered[
-            (df_filtered["price_numeric"] >= 1_000_000) & 
-            (df_filtered["price_numeric"] <= 500_000_000)
-        ]
+        # Loại bỏ các model không rõ ràng
+        df_filtered = df_filtered[~df_filtered["model_normalized"].isin(["Dòng khác", "dòng khác"])]
         
-        # Lọc ra các năm đăng ký hợp lý (từ 1980 đến năm hiện tại)
-        current_year = datetime.now().year
-        df_filtered = df_filtered[
-            (df_filtered["reg_year_numeric"] >= 1980) & 
-            (df_filtered["reg_year_numeric"] <= current_year)
-        ]
+        # Giá phải ít nhất 1 triệu, tối đa 600 triệu (chỉ áp dụng cho dữ liệu huấn luyện)
+        if "price_numeric" in df_filtered.columns:
+            df_filtered = df_filtered[
+                df_filtered["price_numeric"].between(1_000_000, 600_000_000, inclusive="neither")
+            ]
         
-        # Lọc ra các số km hợp lý (từ 0 đến 1,000,000 km)
-        df_filtered = df_filtered[
-            (df_filtered["mileage_numeric"] >= 0) & 
-            (df_filtered["mileage_numeric"] <= 1_000_000)
-        ]
         
+        # Chỉ giữ lại các model có ít nhất 30 bài đăng (chỉ áp dụng cho dữ liệu huấn luyện)
+        if "price_numeric" in df_filtered.columns:
+            df_model_count = df_filtered.groupby("model_normalized").agg(counts=("model_normalized", "count")).reset_index()
+            df_model_over_30 = df_model_count[df_model_count["counts"] >= 30]
+            df_filtered = df_filtered[df_filtered["model_normalized"].isin(df_model_over_30["model_normalized"])]
+            
+            # Loại bỏ một số model cụ thể (chỉ áp dụng cho dữ liệu huấn luyện)
+            df_filtered = df_filtered[~df_filtered["model_normalized"].isin(["Vespa", "Cub", "R", "Dream"])]
+        
+        # Chỉ giữ lại các bản ghi có số km hợp lý
+        df_filtered = df_filtered[df_filtered["mileage_numeric"].between(500, 900_000)]
+
         logger.info(f"Đã lọc xong dữ liệu, còn {len(df_filtered)} bản ghi hợp lệ trên tổng số {len(df_original)} bản ghi")
         
         # Tạo DataFrame kết quả
@@ -578,16 +566,8 @@ def filter_raw_data(csv_file_path, output_file_path=None):
                 existing_columns.append(col)
         
         result_df = df_filtered[existing_columns]
-        
-        # Thêm cột price_millions
         result_df["price_millions"] = (result_df["price_numeric"] / 1_000_000).round(2)
-        
-        # Tạo mô tả ngắn tập hợp các thông tin quan trọng
-        result_df["short_desc"] = result_df.apply(
-            lambda row: f"{row['model_normalized']} ({row['reg_year_numeric']}) - {int(row['mileage_numeric']):,} km - {row['origin_normalized']}", 
-            axis=1
-        )
-        
+
         # Lưu dữ liệu đã lọc nếu có đường dẫn đầu ra
         if output_file_path:
             output_dir = os.path.dirname(output_file_path)
@@ -646,7 +626,7 @@ def create_sqlite_database(df, db_path='data/processed/motorbike_db.sqlite'):
 
 if __name__ == "__main__":
     # Đường dẫn đến file dữ liệu raw
-    raw_data_path = "data/processed/input_xe_cu.csv"
+    raw_data_path = "data/raw/chotot_data.csv"
     
     # Đường dẫn để lưu dữ liệu đã lọc
     filtered_data_path = "data/processed/motorbike_data_filtered.csv"
@@ -663,13 +643,3 @@ if __name__ == "__main__":
     # In thông tin
     if not filtered_df.empty:
         print(f"Tổng số bản ghi hợp lệ: {len(filtered_df)}")
-        print("Thống kê số lượng bản ghi theo model:")
-        print(filtered_df["model_normalized"].value_counts().head(10))
-        print("\nThống kê số lượng bản ghi theo xuất xứ:")
-        print(filtered_df["origin_normalized"].value_counts())
-        print("\nThống kê số lượng bản ghi theo tỉnh/thành phố:")
-        print(filtered_df["province"].value_counts().head(10))
-        print("\nThống kê giá trung bình theo model phổ biến:")
-        top_models = filtered_df["model_normalized"].value_counts().head(10).index
-        price_stats = filtered_df[filtered_df["model_normalized"].isin(top_models)].groupby("model_normalized")["price_millions"].agg(['mean', 'min', 'max', 'count'])
-        print(price_stats.sort_values('count', ascending=False))
