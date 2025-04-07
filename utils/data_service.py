@@ -95,7 +95,7 @@ def get_similar_listings(predicted_price, brand=None, model=None, year=None, mil
         logger.info(f"With parameters: {params}")
         
         # Sử dụng pandas để đọc kết quả truy vấn
-        similar_listings = pd.read_sql_query(query, conn, params=params).head(100)
+        similar_listings = pd.read_sql_query(query, conn, params=params)
         
         # Đóng kết nối
         conn.close()
