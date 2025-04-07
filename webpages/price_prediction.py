@@ -1,25 +1,24 @@
-# pages/price_prediction.py
+# webpages/price_prediction.py
 import streamlit as st
 import io
 import base64
 import pandas as pd
-import pickle
 import os
 from PIL import Image
 from utils.price_prediction import MotorbikePricePredictor
-from utils.data_service import get_brands, get_models, get_variants
-from utils.api_service import analyze_image, analyze_description
-from config import get_db_connection
-import numpy as np
-# Biến global để lưu trữ model
-uploaded_model = None
+from utils.data_service import *
+from config import check_model
+import logging
 
+# Thiết lập logging
+logger = logging.getLogger(__name__)
 def show_price_prediction():
     """Hiển thị trang dự đoán giá xe"""
-    st.markdown('<div class="main-header">Dự đoán giá xe máy cũ</div>', unsafe_allow_html=True)
+    st.title("Dự đoán giá xe máy cũ")
+    st.markdown("Nhập thông tin xe để dự đoán giá.")
     
     # Tạo tabs cho các phương thức nhập
-    tab1, tab2, tab3, tab4 = st.tabs(["Nhập thông số", "Tải lên ảnh", "Nhập mô tả", "Upload Models"])
+    tab1, tab2, tab3 = st.tabs(["Nhập thông số", "Tải lên ảnh", "Nhập mô tả"])
     
     with tab1:
         show_input_specs_tab()
@@ -29,226 +28,13 @@ def show_price_prediction():
     
     with tab3:
         show_input_description_tab()
-    
-    with tab4:
-        show_upload_models_tab()
-
-def show_upload_models_tab():
-    """Hiển thị tab upload models để dự đoán"""
-    global uploaded_model
-    
-    st.subheader("Upload Models để Dự đoán")
-    
-    # Cho phép người dùng upload file model
-    uploaded_file = st.file_uploader(
-        "Upload model tùy chỉnh (chỉ hỗ trợ định dạng .pkl)",
-        type=["pkl"],
-        key="model_uploader"
-    )
-    
-    if uploaded_file:
-        try:
-            # Đọc model từ file
-            model_object = pickle.loads(uploaded_file.getvalue())
-            uploaded_model = model_object
-            st.success(f"Đã tải thành công model: {uploaded_file.name}")
-        except Exception as e:
-            st.error(f"Lỗi khi tải model: {str(e)}")
-            st.info("Định dạng model không hợp lệ. Vui lòng tải lên file model (.pkl) phù hợp.")
-    
-    if not uploaded_model:
-        st.warning("Vui lòng tải lên model trước khi tiếp tục. Các tab dự đoán không hoạt động nếu chưa có model.")
-        return
-    
-    # Hiển thị form nhập thông số xe
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Nhập thông số xe để dự đoán")
-    
-    # Lấy danh sách thương hiệu
-    brands = get_brands()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        brand = st.selectbox(
-            "Thương hiệu",
-            brands,
-            key="brand_tab4"
-        )
-        
-        # Lấy danh sách mẫu xe dựa trên thương hiệu đã chọn
-        models = get_models(brand)
-        model_name = st.selectbox(
-            "Mẫu xe",
-            models if models else [""],
-            key="model_tab4"
-        )
-        
-        # Lấy danh sách phiên bản
-        if model_name:
-            try:
-                variants = get_variants(brand, model_name)
-                variant_options = ["Tất cả phiên bản"] + variants
-                
-                variant = st.selectbox(
-                    "Phiên bản",
-                    variant_options,
-                    key="variant_tab4",
-                    help="Chọn 'Tất cả phiên bản' nếu không nhớ chính xác phiên bản"
-                )
-                
-                # Nếu chọn "Tất cả phiên bản", variant sẽ là None
-                if variant == "Tất cả phiên bản":
-                    variant = None
-            except Exception as e:
-                st.warning(f"Không thể lấy thông tin phiên bản: {str(e)}")
-                variant = None
-        else:
-            variant = None
-        
-        year = st.number_input(
-            "Năm sản xuất", 
-            min_value=1990, 
-            max_value=2025, 
-            value=2020,
-            key="year_tab4"
-        )
-    
-    with col2:
-        # Đổi số km đã đi thành các khoảng lựa chọn
-        km_ranges = [
-            "Dưới 5,000 km", 
-            "5,000 - 10,000 km", 
-            "10,000 - 20,000 km", 
-            "20,000 - 30,000 km",
-            "30,000 - 50,000 km",
-            "Trên 50,000 km"
-        ]
-        
-        km_range = st.selectbox(
-            "Số km đã đi",
-            km_ranges,
-            index=2,  # Mặc định chọn "10,000 - 20,000 km"
-            key="km_range_tab4"
-        )
-        
-        # Chuyển đổi khoảng km thành giá trị số
-        km_driven = convert_km_range_to_value(km_range)
-        
-        condition = st.select_slider(
-            "Tình trạng xe",
-            options=["Rất kém", "Kém", "Trung bình", "Tốt", "Rất tốt"],
-            value="Tốt",
-            key="condition_tab4"
-        )
-        
-        location = st.selectbox(
-            "Khu vực",
-            ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Khác"],
-            key="location_tab4"
-        )
-    
-    # Tạo nút dự đoán
-    if st.button("Dự đoán giá", key="predict_custom_model"):
-        with st.spinner("Đang dự đoán giá..."):
-            try:
-                # Khởi tạo predictor với model đã tải
-                predictor = MotorbikePricePredictor(model_object=uploaded_model)
-                
-                # Chuẩn bị dữ liệu đầu vào
-                condition_map = {
-                    "Rất kém": 1,
-                    "Kém": 2,
-                    "Trung bình": 3,
-                    "Tốt": 4,
-                    "Rất tốt": 5
-                }
-                
-                condition_value = condition_map.get(condition, 3)
-                
-                # Tạo input features
-                features = {
-                    "brand": brand,
-                    "model": model_name,
-                    "variant": variant if variant else "",
-                    "year": year,
-                    "km_driven": km_driven,
-                    "condition": condition_value,
-                    "location": location
-                }
-                
-                # Dự đoán giá
-                prediction = predictor.predict(features)
-                
-                # Hiển thị kết quả dự đoán
-                st.markdown('<div class="success-box">Kết quả dự đoán:</div>', unsafe_allow_html=True)
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Giá dự đoán", f"{prediction['price']} triệu VND")
-                    st.metric("Dải giá thị trường", f"{prediction['price_range'][0]} - {prediction['price_range'][1]} triệu VND")
-                with col2:
-                    st.metric("Độ tin cậy", f"{int(prediction['confidence']*100)}%")
-                    st.write("Thời gian bán ước tính: 2-3 tuần")
-                    
-                    # Hiển thị nguồn dự đoán
-                    if prediction.get('source') == 'custom_model':
-                        st.info("Dự đoán từ model tùy chỉnh")
-                    else:
-                        st.warning("Model tùy chỉnh gặp lỗi, đã sử dụng phương pháp dự đoán đơn giản")
-                
-                # Hiển thị các xe tương tự
-                st.markdown('<div class="sub-header">Các xe tương tự trên thị trường</div>', unsafe_allow_html=True)
-                
-                # Lấy các xe tương tự từ database
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                
-                if variant:
-                    cursor.execute("""
-                        SELECT brand, model, variant, 
-                               year_start as 'Năm', 
-                               engine_cc as 'Dung tích (cc)', 
-                               avg_price_used as 'Giá (triệu VND)'
-                        FROM motorbikes
-                        WHERE brand = ? AND model = ? AND variant = ?
-                        ORDER BY avg_price_used
-                        LIMIT 3
-                    """, (brand, model_name, variant))
-                else:
-                    cursor.execute("""
-                        SELECT brand, model, variant, 
-                               year_start as 'Năm', 
-                               engine_cc as 'Dung tích (cc)', 
-                               avg_price_used as 'Giá (triệu VND)'
-                        FROM motorbikes
-                        WHERE brand = ? AND model = ?
-                        ORDER BY avg_price_used
-                        LIMIT 3
-                    """, (brand, model_name))
-                
-                similar_bikes = [dict(row) for row in cursor.fetchall()]
-                conn.close()
-                
-                if similar_bikes:
-                    similar_df = pd.DataFrame(similar_bikes)
-                    # Hiển thị dữ liệu xe tương tự
-                    st.dataframe(similar_df)
-                else:
-                    st.info("Không tìm thấy thông tin xe tương tự trong cơ sở dữ liệu")
-            
-            except Exception as e:
-                st.error(f"Lỗi khi dự đoán: {str(e)}")
-                st.info("Định dạng model không phù hợp với dữ liệu đầu vào. Vui lòng thử model khác.")
 
 def show_input_specs_tab():
     """Hiển thị tab nhập thông số"""
-    global uploaded_model
-    
     st.subheader("Nhập thông số xe")
     
-    # Kiểm tra xem đã tải model chưa
-    if not uploaded_model:
-        st.error("Vui lòng tải lên model trong tab 'Upload Models' trước khi thực hiện dự đoán")
-        return
+    # Kiểm tra model tồn tại
+    model_available = check_model()
     
     # Lấy danh sách thương hiệu
     brands = get_brands()
@@ -263,41 +49,43 @@ def show_input_specs_tab():
         
         # Lấy danh sách mẫu xe dựa trên thương hiệu đã chọn
         models = get_models(brand)
+            
         model = st.selectbox(
             "Mẫu xe",
-            models if models else [""],
+            models,
             key="model_tab1"
         )
         
-        # Lấy danh sách phiên bản dựa trên thương hiệu và mẫu xe đã chọn
-        if model:
-            try:
-                # Lấy danh sách phiên bản
-                variants = get_variants(brand, model)
+        # # Lấy danh sách phiên bản dựa trên thương hiệu và mẫu xe đã chọn
+        # if model and model != "Không có dữ liệu":
+        #     try:
+        #         # Lấy danh sách phiên bản
+        #         variants = get_variants(brand, model)
                 
-                # Thêm tùy chọn "Tất cả phiên bản" vào đầu danh sách
-                variant_options = ["Tất cả phiên bản"] + variants
+        #         # Thêm tùy chọn "Tất cả phiên bản" vào đầu danh sách
+        #         variant_options = ["Tất cả phiên bản"] + variants if variants else ["Tất cả phiên bản"]
                 
-                variant = st.selectbox(
-                    "Phiên bản",
-                    variant_options,
-                    key="variant_tab1",
-                    help="Chọn 'Tất cả phiên bản' nếu không nhớ chính xác phiên bản"
-                )
+        #         variant = st.selectbox(
+        #             "Phiên bản",
+        #             variant_options,
+        #             key="variant_tab1",
+        #             help="Chọn 'Tất cả phiên bản' nếu không nhớ chính xác phiên bản"
+        #         )
                 
-                # Nếu chọn "Tất cả phiên bản", variant sẽ là None
-                if variant == "Tất cả phiên bản":
-                    variant = None
+        #         # Nếu chọn "Tất cả phiên bản", variant sẽ là None
+        #         if variant == "Tất cả phiên bản":
+        #             variant = None
                     
-            except Exception as e:
-                st.warning(f"Không thể lấy thông tin phiên bản: {str(e)}")
-                variant = None
-        else:
-            variant = None
+        #     except Exception as e:
+        #         logger.error(f"Lỗi khi lấy thông tin phiên bản: {str(e)}")
+        #         st.warning(f"Không thể lấy thông tin phiên bản: {str(e)}")
+        #         variant = None
+        # else:
+        #     variant = None
         
-        year = st.number_input(
+        year = st.slider(
             "Năm sản xuất", 
-            min_value=1990, 
+            min_value=2000, 
             max_value=2025, 
             value=2020,
             key="year_tab1"
@@ -331,25 +119,22 @@ def show_input_specs_tab():
             key="condition_tab1"
         )
         
-        location = st.selectbox(
-            "Khu vực",
-            ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Khác"],
-            key="location_tab1"
+        origin = st.selectbox(
+            "Xuất xứ",
+            ["Việt Nam", "Nhật Bản", "Đài Loan", "Ý", "Thái Lan", "Trung Quốc", "Khác"],
+            key="origin_tab1"
         )
     
     if st.button("Dự đoán giá", key="predict_specs"):
-        process_prediction(brand, model, variant, year, km_driven, condition, location)
+        variant = ""
+        process_prediction(brand, model, variant, year, km_driven, condition, origin)
 
 def show_upload_image_tab():
     """Hiển thị tab tải lên ảnh"""
-    global uploaded_model
-    
     st.subheader("Tải lên ảnh xe")
     
-    # Kiểm tra xem đã tải model chưa
-    if not uploaded_model:
-        st.error("Vui lòng tải lên model trong tab 'Upload Models' trước khi thực hiện dự đoán")
-        return
+    # Kiểm tra model tồn tại
+    model_available = check_model()
         
     uploaded_file = st.file_uploader("Chọn ảnh xe máy", type=["jpg", "jpeg", "png"], key="file_uploader_tab2")
     
@@ -359,39 +144,41 @@ def show_upload_image_tab():
         
         if st.button("Phân tích ảnh", key="analyze_image_btn"):
             with st.spinner("Đang phân tích ảnh..."):
-                # Chuyển ảnh thành base64 để gửi đến API
-                buffered = io.BytesIO()
-                image.save(buffered, format="JPEG")
-                img_str = base64.b64encode(buffered.getvalue()).decode()
-                
-                # Gọi API để phân tích ảnh
-                analysis_result = analyze_image(img_str)
-                
-                # Hiển thị kết quả phân tích
-                st.success("Kết quả phân tích:")
-                
-                # Hiển thị thông số gợi ý từ API
-                st.subheader("Thông số xe nhận diện được:")
-                for key, value in analysis_result.items():
-                    st.write(f"**{key}:** {value}")
-                
-                # Lấy giá trị thương hiệu và mẫu xe từ kết quả phân tích
-                brand_detected = analysis_result.get("Thương hiệu", "Honda")
-                model_detected = analysis_result.get("Mẫu xe", "").split()[0] if analysis_result.get("Mẫu xe", "") else ""
-                
-                # Display form for adjustment
-                show_adjustment_form_from_analysis(brand_detected, model_detected, analysis_result.get("Năm sản xuất", "2019"), "tab2")
+                try:
+                    # Chuyển ảnh thành base64 để gửi đến API
+                    buffered = io.BytesIO()
+                    image.save(buffered, format="JPEG")
+                    img_str = base64.b64encode(buffered.getvalue()).decode()
+                    
+                    # Gọi API để phân tích ảnh
+                    analysis_result = analyze_image(img_str)
+                    
+                    # Hiển thị kết quả phân tích
+                    st.success("Kết quả phân tích:")
+                    
+                    # Hiển thị thông số gợi ý từ API
+                    st.subheader("Thông số xe nhận diện được:")
+                    for key, value in analysis_result.items():
+                        st.write(f"**{key}:** {value}")
+                    
+                    # Lấy giá trị thương hiệu và mẫu xe từ kết quả phân tích
+                    brand_detected = analysis_result.get("brand", "Honda")
+                    model_detected = analysis_result.get("model", "")
+                    year_detected = analysis_result.get("year", 2020)
+                    condition_detected = analysis_result.get("condition", "Tốt")
+                    
+                    # Display form for adjustment
+                    show_adjustment_form_from_analysis(brand_detected, model_detected, year_detected, condition_detected, "tab2")
+                except Exception as e:
+                    logger.error(f"Lỗi khi phân tích ảnh: {str(e)}")
+                    st.error(f"Không thể phân tích ảnh: {str(e)}")
 
 def show_input_description_tab():
     """Hiển thị tab nhập mô tả"""
-    global uploaded_model
-    
     st.subheader("Nhập mô tả xe")
     
-    # Kiểm tra xem đã tải model chưa
-    if not uploaded_model:
-        st.error("Vui lòng tải lên model trong tab 'Upload Models' trước khi thực hiện dự đoán")
-        return
+    # Kiểm tra model tồn tại
+    model_available = check_model()
         
     description = st.text_area(
         "Mô tả chi tiết về xe máy của bạn",
@@ -403,33 +190,40 @@ def show_input_description_tab():
     if st.button("Phân tích mô tả", key="analyze_description_btn"):
         if description:
             with st.spinner("Đang phân tích mô tả..."):
-                # Gọi API để phân tích mô tả
-                analysis_result = analyze_description(description)
-                
-                # Hiển thị kết quả phân tích
-                st.success("Kết quả phân tích:")
-                
-                # Hiển thị thông số gợi ý từ API
-                st.subheader("Thông số xe nhận diện được:")
-                for key, value in analysis_result.items():
-                    st.write(f"**{key}:** {value}")
-                
-                # Lấy giá trị thương hiệu và mẫu xe từ kết quả phân tích
-                brand_detected = analysis_result.get("Thương hiệu", "Honda")
-                model_detected = analysis_result.get("Mẫu xe", "").split()[0] if analysis_result.get("Mẫu xe", "") else ""
-                
-                # Show form for adjustment
-                show_adjustment_form_from_analysis(brand_detected, model_detected, analysis_result.get("Năm sản xuất", "2019"), "tab3", analysis_result.get("Số km đã đi", "20,000 km"))
+                try:
+                    # Gọi API để phân tích mô tả
+                    analysis_result = analyze_description(description)
+                    
+                    # Hiển thị kết quả phân tích
+                    st.success("Kết quả phân tích:")
+                    
+                    # Hiển thị thông số gợi ý từ API
+                    st.subheader("Thông số xe nhận diện được:")
+                    for key, value in analysis_result.items():
+                        st.write(f"**{key}:** {value}")
+                    
+                    # Lấy giá trị từ kết quả phân tích
+                    brand_detected = analysis_result.get("brand", "Honda")
+                    model_detected = analysis_result.get("model", "")
+                    year_detected = analysis_result.get("year", 2020)
+                    km_detected = analysis_result.get("km_driven", 15000)
+                    condition_detected = analysis_result.get("condition", "Tốt")
+                    
+                    # Show form for adjustment
+                    show_adjustment_form_from_analysis(brand_detected, model_detected, year_detected, condition_detected, "tab3", km_detected)
+                except Exception as e:
+                    logger.error(f"Lỗi khi phân tích mô tả: {str(e)}")
+                    st.error(f"Không thể phân tích mô tả: {str(e)}")
         else:
             st.error("Vui lòng nhập mô tả về xe máy của bạn")
 
-def show_adjustment_form_from_analysis(brand_detected, model_detected, year_string, tab_key, km_string=None):
+def show_adjustment_form_from_analysis(brand_detected, model_detected, year_detected, condition_detected, tab_key, km_detected=None):
     """Hiển thị form điều chỉnh thông số dựa trên kết quả phân tích"""
-    global uploaded_model
-    
     # Lấy danh sách thương hiệu và mẫu xe
     brands = get_brands()
+    
     models = get_models(brand_detected) if brand_detected in brands else []
+  
     
     # Tạo form để người dùng điều chỉnh thông số
     st.subheader("Điều chỉnh thông số (nếu cần):")
@@ -445,7 +239,10 @@ def show_adjustment_form_from_analysis(brand_detected, model_detected, year_stri
         
         # Lấy lại danh sách mẫu xe nếu thương hiệu thay đổi
         if brand != brand_detected:
-            models = get_models(brand)
+            try:
+                models = get_models(brand)
+            except Exception as e:
+                models = []
         
         model = st.selectbox(
             "Mẫu xe",
@@ -454,39 +251,49 @@ def show_adjustment_form_from_analysis(brand_detected, model_detected, year_stri
             key=f"model_{tab_key}"
         )
         
-        # Lấy danh sách phiên bản
-        if model:
-            variants = get_variants(brand, model)
-            variant_options = ["Tất cả phiên bản"] + variants
-            
-            variant = st.selectbox(
-                "Phiên bản",
-                variant_options,
-                key=f"variant_{tab_key}",
-                help="Chọn 'Tất cả phiên bản' nếu không nhớ chính xác phiên bản"
-            )
-            
-            # Nếu chọn "Tất cả phiên bản", variant sẽ là None
-            if variant == "Tất cả phiên bản":
-                variant = None
+        # # Lấy danh sách phiên bản
+        # if model and model != "":
+        #     try:
+        #         variants = get_variants(brand, model)
+        #         variant_options = ["Tất cả phiên bản"] + variants if variants else ["Tất cả phiên bản"]
+                
+        #         variant = st.selectbox(
+        #             "Phiên bản",
+        #             variant_options,
+        #             key=f"variant_{tab_key}",
+        #             help="Chọn 'Tất cả phiên bản' nếu không nhớ chính xác phiên bản"
+        #         )
+                
+        #         # Nếu chọn "Tất cả phiên bản", variant sẽ là None
+        #         if variant == "Tất cả phiên bản":
+        #             variant = None
+        #     except Exception as e:
+        #         variant = None
+        #         st.warning(f"Không thể lấy danh sách phiên bản: {str(e)}")
+        # else:
+        #     variant = None
+        
+        # Chuyển year về số nguyên nếu là chuỗi
+        if isinstance(year_detected, str):
+            try:
+                year_value = int(year_detected)
+            except:
+                try:
+                    # Nếu có "năm" hoặc chứa nhiều số, lấy số đầu tiên
+                    import re
+                    year_matches = re.findall(r'\d{4}', year_detected)
+                    if year_matches:
+                        year_value = int(year_matches[0])
+                    else:
+                        year_value = 2020
+                except:
+                    year_value = 2020
         else:
-            variant = None
+            year_value = int(year_detected) if isinstance(year_detected, (int, float)) else 2020
         
-        # Xử lý năm sản xuất từ chuỗi thành số
-        try:
-            if '-' in year_string:
-                # Nếu là khoảng năm như "2018-2020"
-                years = [int(y) for y in year_string.replace('Khoảng', '').strip().split('-')]
-                year_value = sum(years) // len(years)  # Lấy giá trị trung bình
-            else:
-                # Nếu là một năm cụ thể
-                year_value = int(''.join(filter(str.isdigit, year_string)))
-        except:
-            year_value = 2019
-        
-        year = st.number_input(
+        year = st.slider(
             "Năm sản xuất", 
-            min_value=1990, 
+            min_value=2000, 
             max_value=2025, 
             value=year_value,
             key=f"year_{tab_key}"
@@ -504,9 +311,9 @@ def show_adjustment_form_from_analysis(brand_detected, model_detected, year_stri
         ]
         
         # Xử lý số km từ kết quả phân tích
-        if km_string:
+        if km_detected:
             try:
-                km_value = int(''.join(filter(str.isdigit, km_string)))
+                km_value = int(km_detected) if isinstance(km_detected, (int, float)) else 15000
                 # Chọn khoảng km phù hợp với giá trị phát hiện
                 if km_value < 5000:
                     default_index = 0
@@ -535,153 +342,102 @@ def show_adjustment_form_from_analysis(brand_detected, model_detected, year_stri
         # Chuyển đổi khoảng km thành giá trị số
         km_driven = convert_km_range_to_value(km_range)
         
+        # Chuyển condition thành chuỗi nếu cần
+        if isinstance(condition_detected, str):
+            condition_value = condition_detected
+        else:
+            condition_value = "Tốt"
+        
+        # Đảm bảo giá trị condition nằm trong danh sách tùy chọn
+        condition_options = ["Rất kém", "Kém", "Trung bình", "Tốt", "Rất tốt"]
+        if condition_value not in condition_options:
+            condition_value = "Tốt"
+        
         condition = st.select_slider(
             "Tình trạng xe",
-            options=["Rất kém", "Kém", "Trung bình", "Tốt", "Rất tốt"],
-            value="Tốt",
+            options=condition_options,
+            value=condition_value,
             key=f"condition_{tab_key}"
         )
         
-        location = st.selectbox(
-            "Khu vực",
-            ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Khác"],
-            key=f"location_{tab_key}"
+        origin = st.selectbox(
+            "Xuất xứ",
+            ["Việt Nam", "Nhật Bản", "Đài Loan", "Ý", "Thái Lan", "Trung Quốc", "Khác"],
+            key=f"origin_{tab_key}"
         )
     
     if st.button("Dự đoán giá", key=f"predict_from_{tab_key}_btn"):
-        process_prediction(brand, model, variant, year, km_driven, condition, location)
+        variant = ""
+        process_prediction(brand, model, variant, year, km_driven, condition, origin)
 
-def process_prediction(brand, model, variant, year, km_driven, condition, location):
+def process_prediction(brand, model, variant, year, km_driven, condition, origin):
     """Xử lý dự đoán giá"""
-    global uploaded_model
-    
-    # Kiểm tra xem đã tải model chưa
-    if not uploaded_model:
-        st.error("Vui lòng tải lên model trước khi thực hiện dự đoán")
-        return
-    
     try:
         with st.spinner("Đang dự đoán giá..."):
-            # Tính tuổi xe và chuyển đổi các giá trị
-            age = 2025 - year
-            if age == 0:
-                age = 0.5
-                
-            # Tạo DataFrame với dữ liệu đầu vào ban đầu
-            input_data = pd.DataFrame([
-                {
-                    "age_log": np.log(age),
-                    "mileage_log": np.log(km_driven),
-                    "ref_price_log": np.log(100000),  # Giá tham chiếu mẫu, cần điều chỉnh
-                    "country_multiplier": 1.0,
-                    "model": model,
-                    "origin": "Việt Nam",  # Giả sử mặc định
-                    "location_clean": location
-                }
-            ])
+            # Khởi tạo model từ đường dẫn trong config
+            predictor = MotorbikePricePredictor()
             
-            # Lấy tên các tính năng mà model mong đợi
-            if hasattr(uploaded_model, 'feature_names_in_'):
-                feature_names = uploaded_model.feature_names_in_
-            else:
-                st.error("Model không có thuộc tính feature_names_in_. Không thể xác định tính năng đầu vào.")
-                return
-                
-            # Chuẩn bị DataFrame trống với các tính năng giống model
-            X_new = pd.DataFrame(columns=feature_names, index=range(len(input_data)))
-            X_new = X_new.fillna(0)  # Điền 0 ban đầu
+            # Chuẩn bị dữ liệu đầu vào
+            input_data = {
+                "brand": brand,
+                "model": model,
+                "variant": variant if variant else "",
+                "reg_year": year,
+                "mileage": km_driven,
+                "origin": origin,
+                "condition": condition
+            }
+            # Dự đoán giá
+            result = predictor.predict(input_data)
             
-            # Điền các tính năng liên tục trực tiếp
-            continuous_features = ['age_log', 'mileage_log', 'ref_price_log', 'country_multiplier']
-            for feature in continuous_features:
-                if feature in feature_names:
-                    X_new[feature] = input_data[feature].values
-            
-            # Xử lý các tính năng phân loại
-            test_model = input_data['model'].values[0]
-            test_origin = input_data['origin'].values[0]
-            test_location = input_data['location_clean'].values[0]
-            
-            # Đặt các cột mã hóa one-hot thích hợp dựa trên giá trị phân loại
-            for feature in feature_names:
-                # Cho tính năng model
-                if feature.startswith('model_') and feature[6:] in test_model:
-                    X_new[feature] = 1
-                
-                # Cho tính năng origin
-                if feature.startswith('origin_') and feature[7:] in test_origin:
-                    X_new[feature] = 1
-                
-                # Cho tính năng location
-                if feature.startswith('location_clean_') and feature[15:] in test_location:
-                    X_new[feature] = 1
-            
-            # Dự đoán
-            prediction = uploaded_model.predict(X_new)
-            
-            # Chuyển đổi dự đoán về thang đo ban đầu
-            predicted_price = np.exp(prediction[0]) * 1000  # Nhân với 1000 vì giá trong model là đơn vị nghìn
-            
-            # Tạo khoảng giá +/- 10%
-            price_range = [predicted_price * 0.9, predicted_price * 1.1]
+            # Định dạng giá trị tiền để dễ đọc
+            formatted_price = f"{result['price'] / 1_000_000:.2f}".rstrip('0').rstrip('.') if result['price'] % 1_000_000 == 0 else f"{result['price'] / 1_000_000:.2f}"
+            formatted_low = f"{result['price_range'][0] / 1_000_000:.2f}".rstrip('0').rstrip('.')
+            formatted_high = f"{result['price_range'][1] / 1_000_000:.2f}".rstrip('0').rstrip('.')
             
             # Hiển thị kết quả
-            st.markdown('<div class="success-box">Kết quả dự đoán:</div>', unsafe_allow_html=True)
+            st.success("Kết quả dự đoán:")
             col1, col2 = st.columns(2)
             with col1:
-                st.metric("Giá dự đoán", f"{round(predicted_price/1000000, 2)} triệu VND")
-                st.metric("Dải giá thị trường", f"{round(price_range[0]/1000000, 2)} - {round(price_range[1]/1000000, 2)} triệu VND")
+                st.metric("Giá dự đoán", f"{formatted_price} triệu VND")
+                st.metric("Khoảng giá", f"{formatted_low} - {formatted_high} triệu VND")
             with col2:
-                st.metric("Độ tin cậy", "85%")
-                st.write("Thời gian bán ước tính: 2-3 tuần")
+                st.progress(result['confidence'])
+                st.write(f"Độ tin cậy: {int(result['confidence']*100)}%")
             
-            # Hiển thị các xe tương tự
-            st.markdown('<div class="sub-header">Các xe tương tự trên thị trường</div>', unsafe_allow_html=True)
+            # Hiển thị thông số xe
+            st.subheader("Thông số xe")
+            info_df = pd.DataFrame({
+                'Thông số': ['Thương hiệu', 'Mẫu xe', 'Năm đăng ký', 'Số km đã đi', 'Tình trạng', 'Xuất xứ'],
+                'Giá trị': [
+                    brand, 
+                    f"{model} {variant if variant else ''}".strip(), 
+                    str(year), 
+                    f"{km_driven:,} km", 
+                    condition, 
+                    origin
+                ]
+            })
+            st.table(info_df)
             
-            # Lấy các xe tương tự từ database
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            # Tìm và hiển thị các bài đăng tương tự
+            with st.spinner("Đang tìm kiếm các bài đăng tương tự..."):
+                similar_listings = fetch_similar_listings(
+                    predicted_price=result['price'],
+                    input_data=input_data,
+                    limit=3,
+                    max_days_old=90  # Mặc định lấy bài đăng trong 3 tháng gần nhất
+                )
+                
+                if not similar_listings.empty:
+                    st.markdown("---")
+                    display_similar_listings(similar_listings, result['price'])
+                else:
+                    st.info("Không tìm thấy bài đăng tương tự.")
             
-            if variant:
-                cursor.execute("""
-                    SELECT brand, model, variant, 
-                           year_start as 'Năm', 
-                           engine_cc as 'Dung tích (cc)', 
-                           avg_price_used as 'Giá (triệu VND)'
-                    FROM motorbikes
-                    WHERE brand = ? AND model = ? AND variant = ?
-                    ORDER BY avg_price_used
-                    LIMIT 3
-                """, (brand, model, variant))
-            else:
-                cursor.execute("""
-                    SELECT brand, model, variant, 
-                           year_start as 'Năm', 
-                           engine_cc as 'Dung tích (cc)', 
-                           avg_price_used as 'Giá (triệu VND)'
-                    FROM motorbikes
-                    WHERE brand = ? AND model = ?
-                    ORDER BY avg_price_used
-                    LIMIT 3
-                """, (brand, model))
-            
-            similar_bikes = [dict(row) for row in cursor.fetchall()]
-            conn.close()
-            
-            if similar_bikes:
-                similar_df = pd.DataFrame(similar_bikes)
-                # Hiển thị dữ liệu xe tương tự
-                st.dataframe(similar_df)
-            else:
-                st.info("Không tìm thấy thông tin xe tương tự trong cơ sở dữ liệu")
-    
     except Exception as e:
+        logger.error(f"Lỗi khi dự đoán giá: {str(e)}")
         st.error(f"Lỗi khi dự đoán giá: {str(e)}")
-        
-        # Hiển thị thêm thông tin debug khi có lỗi
-        if hasattr(uploaded_model, 'feature_names_in_'):
-            st.write("Các tính năng model mong đợi:")
-            st.write(uploaded_model.feature_names_in_)
 
 def convert_km_range_to_value(km_range):
     """Chuyển đổi khoảng km thành giá trị số"""
@@ -697,3 +453,83 @@ def convert_km_range_to_value(km_range):
         return 40000
     else:  # Trên 50,000 km
         return 60000
+    
+def fetch_similar_listings(predicted_price, input_data, limit=3, max_days_old=30):
+    """
+    Truy vấn các bài đăng có giá gần với giá dự đoán
+    
+    Args:
+        predicted_price: Giá dự đoán (VND)
+        input_data: Dictionary chứa thông tin xe người dùng nhập (brand, model, reg_year, mileage, condition, origin)
+        limit: Số lượng bài đăng muốn hiển thị
+        max_days_old: Số ngày tối đa kể từ ngày đăng
+        
+    Returns:
+        DataFrame chứa thông tin các bài đăng tương tự
+    """
+    try:
+        # Trích xuất các thông số từ input_data
+        model = input_data.get("model", "")
+        year = input_data.get("reg_year")
+        mileage = input_data.get("mileage")
+        condition = input_data.get("condition")
+        origin = input_data.get("origin")
+        brand = input_data.get("brand")
+        
+        logger.info(f"Tìm kiếm bài đăng tương tự: brand={brand}, model={model}, year={year}, mileage={mileage}, condition={condition}, origin={origin}")
+        
+        # Gọi hàm get_similar_listings từ data_service với đầy đủ thông số
+        similar_listings = get_similar_listings(
+            predicted_price=predicted_price,
+            brand=brand,
+            model=model,
+            year=year,
+            mileage=mileage,
+            condition=condition,
+            origin=origin,
+        )
+        
+        logger.info(f"Đã tìm thấy {len(similar_listings)} bài đăng tương tự")
+        return similar_listings
+    
+    except Exception as e:
+        logger.error(f"Lỗi khi tìm kiếm bài đăng tương tự: {str(e)}")
+        return pd.DataFrame()
+
+def display_similar_listings(similar_listings, predicted_price):
+    """
+    Hiển thị các bài đăng có giá gần với giá dự đoán
+    
+    Args:
+        similar_listings: DataFrame chứa thông tin các bài đăng tương tự
+        predicted_price: Giá dự đoán (VND)
+    """
+    if similar_listings.empty:
+        st.info("Không tìm thấy bài đăng tương tự.")
+        return
+    
+    st.subheader("Các bài đăng tương tự trên thị trường")
+    
+    # Hiển thị các bài đăng
+    for i, row in similar_listings.iterrows():
+        with st.container():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**{row['title']}**")
+                st.text(row["short_desc"])
+                st.text(f"📍 {row['location']}")
+            with col2:
+                st.markdown(f"### {row['price_millions']} triệu")
+                
+                # Tạo khóa duy nhất cho mỗi nút
+                button_key = f"btn_listing_{row.get('id', i)}"
+                
+                # Kiểm tra URL có đầy đủ không
+                url = row.get('url', '')
+                if url and not url.startswith(('http://', 'https://')):
+                    url = f"https://xe.chotot.com{url}"
+                
+                # Hiển thị liên kết trực tiếp thay vì button
+                st.markdown(f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer;'>Xem chi tiết</button></a>", unsafe_allow_html=True)
+            
+            st.markdown("---")

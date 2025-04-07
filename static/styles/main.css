@@ -224,3 +224,12 @@ div[data-testid="stMarkdownContainer"] a {
 div[data-testid="stMarkdownContainer"] a:hover {
   text-decoration: underline;
 }
+
+div[data-baseweb="select"] > div:nth-child(2) {
+  display: none !important;
+}
+
+/* Giữ lại style cho dropdown menu */
+div[data-baseweb="popover"] {
+  z-index: 999 !important;
+}

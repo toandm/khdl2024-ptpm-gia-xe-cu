@@ -1,107 +1,78 @@
-import subprocess
 import sys
 import os
-import time
-import requests
 import logging
-import socket
+import streamlit as st
 
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def check_port_available(port, host='localhost'):
-    """Kiểm tra xem port có đang được sử dụng không"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex((host, port)) != 0
+# Thêm thư mục gốc vào sys.path để có thể import các module
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-def run_flask_api():
-    """Chạy Flask API trong tiến trình riêng"""
-    # Đọc thông tin port từ config
-    try:
-        from config import API_PORT
-        api_port = API_PORT
-    except (ImportError, AttributeError):
-        api_port = 5001
+# Import các trang
+from webpages.market_overview import show_market_overview
+from webpages.price_prediction import show_price_prediction
+from webpages.bike_comparison import show_bike_comparison
+from webpages.bike_suggestion import show_bike_suggestion
+
+# Import cấu hình
+from config import check_database
+
+def main():
+    """Hàm chính của ứng dụng Streamlit"""
     
-    # Kiểm tra port
-    if not check_port_available(api_port):
-        logger.error(f"Port {api_port} đang được sử dụng. Không thể khởi động Flask API.")
-        return None
-    
-    # Chạy Flask API - hiển thị output trực tiếp thay vì redirect
-    logger.info(f"Đang khởi động Flask API trên port {api_port}...")
-    flask_process = subprocess.Popen(
-        [sys.executable, "flask_app.py"],
-        # Không redirect output để dễ debug
-        # stdout=subprocess.PIPE,
-        # stderr=subprocess.PIPE
+    # Cấu hình trang
+    st.set_page_config(
+        page_title="Dự Đoán Giá Xe Máy Cũ",
+        page_icon="🏍️",
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
-    return flask_process
 
-def check_api_health(url, max_retries=30, retry_interval=1):
-    """Kiểm tra kết nối API với cơ chế retry"""
-    logger.info(f"Đang kiểm tra kết nối đến API tại {url}...")
-    
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, timeout=2)
-            if response.status_code == 200:
-                logger.info(f"✅ API hoạt động tốt sau {attempt + 1} lần thử!")
-                return True
-            else:
-                logger.warning(f"API trả về mã lỗi: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            logger.info(f"Đang thử kết nối... ({attempt + 1}/{max_retries})")
-            
-        # Đợi trước khi thử lại
-        if attempt < max_retries - 1:
-            time.sleep(retry_interval)
-    
-    logger.error(f"❌ Không thể kết nối đến API sau {max_retries} lần thử!")
-    return False
+    # Load CSS tùy chỉnh
+    def load_css():
+        css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'styles', 'main.css')
+        if os.path.exists(css_path):
+            with open(css_path, 'r', encoding='utf-8') as f:
+                css = f.read()
+            st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+        else:
+            st.warning(f"Không tìm thấy file CSS: {css_path}")
+
+    try:
+        load_css()
+    except Exception as e:
+        st.warning(f"Không thể tải CSS: {str(e)}")
+
+    # Kiểm tra database trước
+    check_database()
+
+    # Sidebar
+    st.sidebar.title("🏍️ Dự Đoán Giá Xe Máy Cũ")
+    page = st.sidebar.radio(
+        "Chọn trang:",
+        [
+            "Dự đoán giá xe", 
+            # "Tổng quan thị trường", 
+            # "So sánh xe", 
+            # "Gợi ý mua xe"
+        ]
+    )
+
+    # Điều hướng trang
+    if page == "Tổng quan thị trường":
+        show_market_overview()
+    elif page == "Dự đoán giá xe":
+        show_price_prediction()
+    elif page == "So sánh xe":
+        show_bike_comparison()
+    elif page == "Gợi ý mua xe":
+        show_bike_suggestion()
+
+    # Thêm footer
+    st.markdown('<div class="footer">Ứng dụng dự đoán giá xe máy cũ © 2025</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    # Đảm bảo thư mục data tồn tại
-    os.makedirs("data", exist_ok=True)
-    
-    # Lấy thông tin port từ config
-    try:
-        from config import API_PORT
-        api_port = API_PORT
-    except (ImportError, AttributeError):
-        api_port = 5001
-    
-    # Khởi động Flask API
-    flask_process = run_flask_api()
-    
-    if flask_process is None:
-        logger.error("Không thể khởi động Flask API. Vui lòng kiểm tra port và thử lại.")
-        sys.exit(1)
-    
-    # Đường dẫn API test endpoint
-    api_test_url = f"http://localhost:{api_port}/api/test"
-    
-    # Kiểm tra API khởi động thành công
-    api_available = check_api_health(api_test_url, max_retries=30, retry_interval=1)
-    
-    if api_available:
-        try:
-            # Chạy Streamlit app
-            logger.info("Đang khởi động Streamlit app...")
-            subprocess.run([sys.executable, "-m", "streamlit", "run", "streamlit_app.py"])
-        except KeyboardInterrupt:
-            logger.info("Đã nhận lệnh thoát từ người dùng.")
-        finally:
-            # Dừng Flask API
-            logger.info("Đang dừng Flask API...")
-            flask_process.terminate()
-            flask_process.wait(timeout=5)
-            logger.info("Flask API đã dừng.")
-    else:
-        # Nếu API không khởi động được, dừng Flask process
-        logger.error("Không thể kết nối đến API. Ứng dụng sẽ thoát.")
-        flask_process.terminate()
-        flask_process.wait(timeout=5)
-        sys.exit(1)
+    main()

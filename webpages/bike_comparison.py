@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from config import get_db_connection
-from utils.data_service import get_brands, get_models, get_variants
+from utils.data_service import *
 
 def show_bar_comparison(bike1_data, bike2_data):
     """Hiển thị biểu đồ cột so sánh chi tiết thông số"""
@@ -316,25 +316,25 @@ def show_bike_comparison():
             key="model_bike1"
         )
         
-        if bike1['model']:
-            variants = get_variants(bike1['brand'], bike1['model'])
-            variant_options = ["Tất cả phiên bản"] + variants
-            selected_variant = st.selectbox(
-                "Phiên bản",
-                variant_options,
-                key="variant_bike1"
-            )
+        # if bike1['model']:
+        #     variants = get_variants(bike1['brand'], bike1['model'])
+        #     variant_options = ["Tất cả phiên bản"] + variants
+        #     selected_variant = st.selectbox(
+        #         "Phiên bản",
+        #         variant_options,
+        #         key="variant_bike1"
+        #     )
             
-            bike1['variant'] = None if selected_variant == "Tất cả phiên bản" else selected_variant
+        #     bike1['variant'] = None if selected_variant == "Tất cả phiên bản" else selected_variant
             
-            # Thêm năm sản xuất (tùy chọn)
-            bike1['year'] = st.number_input(
-                "Năm sản xuất",
-                min_value=1990,
-                max_value=2025,
-                value=2020,
-                key="year_bike1"
-            )
+        #     # Thêm năm sản xuất (tùy chọn)
+        #     bike1['year'] = st.number_input(
+        #         "Năm sản xuất",
+        #         min_value=1990,
+        #         max_value=2025,
+        #         value=2020,
+        #         key="year_bike1"
+        #     )
     
     # Xe thứ hai
     with col2:
@@ -352,25 +352,25 @@ def show_bike_comparison():
             key="model_bike2"
         )
         
-        if bike2['model']:
-            variants = get_variants(bike2['brand'], bike2['model'])
-            variant_options = ["Tất cả phiên bản"] + variants
-            selected_variant = st.selectbox(
-                "Phiên bản",
-                variant_options,
-                key="variant_bike2"
-            )
+        # if bike2['model']:
+        #     variants = get_variants(bike2['brand'], bike2['model'])
+        #     variant_options = ["Tất cả phiên bản"] + variants
+        #     selected_variant = st.selectbox(
+        #         "Phiên bản",
+        #         variant_options,
+        #         key="variant_bike2"
+        #     )
             
-            bike2['variant'] = None if selected_variant == "Tất cả phiên bản" else selected_variant
+        #     bike2['variant'] = None if selected_variant == "Tất cả phiên bản" else selected_variant
             
-            # Thêm năm sản xuất (tùy chọn)
-            bike2['year'] = st.number_input(
-                "Năm sản xuất",
-                min_value=1990,
-                max_value=2025,
-                value=2020,
-                key="year_bike2"
-            )
+        #     # Thêm năm sản xuất (tùy chọn)
+        #     bike2['year'] = st.number_input(
+        #         "Năm sản xuất",
+        #         min_value=1990,
+        #         max_value=2025,
+        #         value=2020,
+        #         key="year_bike2"
+        #     )
     
     # Nút so sánh
     if st.button("So sánh xe", key="compare_bikes_btn"):

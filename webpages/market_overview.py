@@ -71,7 +71,6 @@ def show_market_overview():
     # Sử dụng dữ liệu market_data để tính toán
     total_count = market_data['Số lượng giao dịch'].sum()
     avg_price = round(market_data['Giá trung bình (triệu VND)'].mean(), 1)
-    price_diff = round(market_data['Chênh lệch giá (%)'].mean(), 1)
     
     # Hiển thị các số liệu tổng quan
     col1, col2, col3 = st.columns(3)
@@ -79,8 +78,7 @@ def show_market_overview():
         st.metric("Số lượng xe", f"{total_count:,}", "+5%")
     with col2:
         st.metric("Giá trung bình", f"{avg_price} triệu VND", "+2%")
-    with col3:
-        st.metric("Chênh lệch giá", f"{price_diff}%", "-1%")
+
     
     # Hiển thị biểu đồ thị trường
     st.markdown('<div class="sub-header">Phân tích thị trường theo thương hiệu</div>', unsafe_allow_html=True)
