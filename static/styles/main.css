@@ -1,0 +1,235 @@
+/* static/styles/main.css */
+/* Tùy chỉnh CSS cho ứng dụng Streamlit */
+
+:root {
+  /* Color variables */
+  --primary: #1e88e5;
+  --primary-dark: #1565c0;
+  --text-primary: #424242;
+  --text-secondary: #757575;
+  --bg-light: #f8f9fa;
+  --border-light: #e0e0e0;
+  --success: #43a047;
+  --success-light: #e8f5e9;
+  --info-light: #e3f2fd;
+
+  /* Spacing variables */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+/* Typography */
+.main-header {
+  color: var(--primary);
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.2;
+}
+
+.sub-header {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.3;
+}
+
+/* Tabs styling */
+.stTabs [data-baseweb="tab-list"] {
+  gap: var(--spacing-sm);
+}
+
+.stTabs [data-baseweb="tab"] {
+  background-color: #f0f2f6;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.stTabs [aria-selected="true"] {
+  background-color: var(--primary) !important;
+  color: white !important;
+}
+
+/* Containers */
+.info-box {
+  background-color: var(--bg-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  border-left: 4px solid var(--primary);
+  margin-bottom: var(--spacing-sm);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.success-box {
+  background-color: var(--info-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  border-left: 4px solid var(--primary);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.prediction-result {
+  background-color: var(--success-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin: var(--spacing-sm) 0;
+  border-left: 4px solid var(--success);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Buttons */
+.stButton button {
+  background-color: var(--primary);
+  color: white;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.stButton button:hover {
+  background-color: var(--primary-dark);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.stButton button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Metrics */
+.stMetric {
+  background-color: var(--bg-light);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stMetric:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Data display */
+.stDataFrame {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Form inputs */
+input,
+select,
+textarea {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--border-light) !important;
+  padding: var(--spacing-xs) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2) !important;
+}
+
+/* Sidebar */
+.sidebar .sidebar-content {
+  background-color: #f5f7f9;
+}
+
+.sidebar-logo {
+  display: block;
+  margin: 0 auto;
+  max-width: 80%;
+  padding: var(--spacing-sm) 0;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-top: 3rem;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-light);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .main-header {
+    font-size: 2rem;
+  }
+
+  .sub-header {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-header {
+    font-size: 1.8rem;
+  }
+
+  .sub-header {
+    font-size: 1.2rem;
+  }
+
+  .info-box,
+  .prediction-result {
+    padding: var(--spacing-sm);
+  }
+
+  /* Cải thiện khoảng cách cho thiết bị di động */
+  [data-testid="stVerticalBlock"] > div:not(:last-child) {
+    margin-bottom: var(--spacing-sm);
+  }
+}
+
+/* Animation and hover effects */
+.stButton button,
+.stMetric,
+.info-box,
+.success-box,
+.prediction-result {
+  transition: all 0.3s ease;
+}
+
+/* Sửa lỗi UI Streamlit */
+button[kind="primaryFormSubmit"] {
+  background-color: var(--primary) !important;
+}
+
+div[data-testid="stMarkdownContainer"] a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+div[data-testid="stMarkdownContainer"] a:hover {
+  text-decoration: underline;
+}
+
+div[data-baseweb="select"] > div:nth-child(2) {
+  display: none !important;
+}
+
+/* Giữ lại style cho dropdown menu */
+div[data-baseweb="popover"] {
+  z-index: 999 !important;
+}

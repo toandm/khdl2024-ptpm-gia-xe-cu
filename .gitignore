@@ -1,12 +1,16 @@
-# Byte-compiled / optimized / DLL files
+# Virtual Environment
+venv/
+env/
+.venv
+.env/
+.wvenv/
+.w2venv/
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
