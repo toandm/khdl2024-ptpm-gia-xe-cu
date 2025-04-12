@@ -3,12 +3,12 @@ import argparse
 import logging
 import pandas as pd
 import numpy as np
+import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
-import joblib
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
 import json
-import yaml
 import statsmodels.api as sm
 
 from data_processing import process_training_data
@@ -54,6 +54,10 @@ def train_model(data_path, output_path):
     logger.info("Đang xử lý và chuyển đổi dữ liệu...")
     try:
         X, y = process_training_data(df)
+        np.save('data\processed\X_data.npy', X)
+        np.save('data\processed\y_data.npy', y)
+        # X = np.load('X_data.npy')
+        # y = np.load('y_data.npy')
         logger.info(f"Đã xử lý dữ liệu thành công. Ma trận đặc trưng có kích thước: {X.shape}")
     except Exception as e:
         logger.error(f"Lỗi khi xử lý dữ liệu: {e}")
@@ -99,10 +103,13 @@ def train_model(data_path, output_path):
     try:
         # Khởi tạo mô hình với các tham số đã chọn
         rf_model = RandomForestRegressor(
-            n_estimators=100,    # Số lượng cây
-            max_depth=10,        # Độ sâu tối đa của cây
-            random_state=42,     # Seed ngẫu nhiên để đảm bảo kết quả có thể tái tạo
-            n_jobs=-1            # Sử dụng tất cả các lõi CPU có sẵn
+            n_estimators=100,    
+            max_depth=10,        
+            min_samples_split=2,
+            min_samples_leaf=1,
+            max_features='auto',
+            random_state=42,     
+            n_jobs=-1            
         )
         
         # Fit mô hình với dữ liệu huấn luyện
@@ -121,8 +128,9 @@ def train_model(data_path, output_path):
 
         
         # Tính toán các chỉ số đánh giá trên thang đo gốc
+        mae = mean_absolute_error(y_test, y_pred_log)
         mse = mean_squared_error(y_test, y_pred_log)
-        rmse = np.sqrt(mse)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred_log))
         r2 = r2_score(y_test, y_pred_log)
         mape = np.mean(np.abs((y_test - y_pred_log) / y_test)) * 100
         
@@ -136,6 +144,7 @@ def train_model(data_path, output_path):
         
         # Hiển thị các chỉ số đánh giá
         logger.info("Kết quả đánh giá mô hình RandomForest:")
+        logger.info(f"  MAE: {mae:,.2f}")
         logger.info(f"  MSE: {mse:,.2f}")
         logger.info(f"  RMSE: {rmse:,.2f}")
         logger.info(f"  R²: {r2:.4f}")
