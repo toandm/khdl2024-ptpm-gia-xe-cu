@@ -83,13 +83,13 @@ def show_input_specs_tab():
         # else:
         #     variant = None
         
-        # year = st.slider(
-        #     "Năm sản xuất", 
-        #     min_value=2000, 
-        #     max_value=2025, 
-        #     value=2020,
-        #     key="year_tab1"
-        # )
+        year = st.slider(
+            "Năm sản xuất", 
+            min_value=2000, 
+            max_value=2025, 
+            value=2020,
+            key="year_tab1"
+        )
     
     with col2:
         # Đổi số km đã đi thành các khoảng lựa chọn
@@ -113,7 +113,6 @@ def show_input_specs_tab():
         km_driven = convert_km_range_to_value(km_range)
         
         condition = "Tốt"
-        year = 2022
         origin = st.selectbox(
             "Xuất xứ",
             ["Việt Nam", "Nhật Bản", "Đài Loan", "Ý", "Thái Lan", "Trung Quốc", "Khác"],
