@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.preprocessing import PolynomialFeatures
 import re
 import os
-
+import statsmodels.api as sm
 # Cấu hình logging
 logger = logging.getLogger(__name__)
 
@@ -359,18 +359,11 @@ def prepare_feature_matrix(df: pd.DataFrame, include_province: bool = False) -> 
     Returns:
         Ma trận đặc trưng X
     """
-    # Đa thức cho age_log với intercept
-    poly = PolynomialFeatures(degree=3)
-    age_log_poly_intercept = poly.fit_transform(df[["age_log"]])
-    
-    # Danh sách các đặc trưng
-    features = ["mileage_log", "origin_multiplier", "model_ref_price_log"]
-    if include_province:
-        features.append("province_scoli")
-    
-    # Tạo ma trận đặc trưng
-    X = np.hstack((age_log_poly_intercept, df[features]))
-    
+    # Danh sách các đặc trưng bậc 1 (không dùng đa thức cho age_log)
+    df = df.reset_index(drop=True)
+    features = ["age_log", "mileage_log", "origin_multiplier", "model_ref_price_log"]
+    # Thêm constant và chuyển đổi thành numpy array
+    X = sm.add_constant(df[features]).values
     return X
 
 
@@ -417,9 +410,16 @@ def process_training_data(df: pd.DataFrame, save_path: str = "data/processed") -
     ]
     df_final = df_filter[cols_for_model]
     
+    # Lưu thông tin về df_final để tiện debug và kiểm tra
+    if save_path:
+        df_final.to_csv(f"{save_path}/processed_training_data.csv", index=False)
+    
     # Chuẩn bị ma trận đặc trưng và vector mục tiêu
     X = prepare_feature_matrix(df_final, include_province=False)
     y = df_final["price_log"].values
+    
+    # Lưu shape của X để kiểm tra khi dự đoán
+    logger.info(f"Ma trận đặc trưng X có kích thước: {X.shape}")
     
     return X, y
 
@@ -453,10 +453,9 @@ def process_prediction_input(input_data: dict) -> tuple:
     
     # Làm sạch dữ liệu dự đoán
     df_clean = clean_prediction_data(df)
-    
     # Áp dụng các biến đổi đặc trưng
     df_transformed = apply_feature_transformations(df_clean, is_training=False)
-    
+
     # Kiểm tra và xử lý các giá trị NaN
     has_nan = df_transformed.isnull().any().any()
     if has_nan:
@@ -478,9 +477,18 @@ def process_prediction_input(input_data: dict) -> tuple:
             else:
                 # Sử dụng giá trị trung bình cho các cột còn lại
                 df_transformed[col].fillna(df_transformed[col].median(), inplace=True)
-    
-    # Chuẩn bị ma trận đặc trưng
+
+    # Chuẩn bị ma trận đặc trưng - sử dụng cùng hàm như khi huấn luyện
     X = prepare_feature_matrix(df_transformed, include_province=False)
+    if X.shape[1] != 5:
+        logger.error(f"Ma trận đặc trưng có {X.shape[1]} cột, nhưng cần 5 cột (bao gồm cột hằng số)")
+        # Nếu thiếu cột hằng số, thêm vào
+        if X.shape[1] == 4:
+            logger.info("Đang thêm cột hằng số vào đầu ma trận đặc trưng")
+            const_column = np.ones((X.shape[0], 1))
+            X = np.hstack((const_column, X))
+    # Log thông tin về kích thước của ma trận đặc trưng
+    logger.info(f"Ma trận đặc trưng dự đoán có kích thước: {X.shape}")
     
     # Kiểm tra lần cuối xem ma trận đặc trưng có chứa NaN không
     if np.isnan(X).any():

@@ -44,7 +44,7 @@ def show_input_specs_tab():
         brand = st.selectbox(
             "Thương hiệu",
             brands,
-            key="brand_tab1"
+            key="brand_tab1",
         )
         
         # Lấy danh sách mẫu xe dựa trên thương hiệu đã chọn
@@ -112,13 +112,7 @@ def show_input_specs_tab():
         # Chuyển đổi khoảng km thành giá trị số
         km_driven = convert_km_range_to_value(km_range)
         
-        condition = st.select_slider(
-            "Tình trạng xe",
-            options=["Rất kém", "Kém", "Trung bình", "Tốt", "Rất tốt"],
-            value="Tốt",
-            key="condition_tab1"
-        )
-        
+        condition = "Tốt"
         origin = st.selectbox(
             "Xuất xứ",
             ["Việt Nam", "Nhật Bản", "Đài Loan", "Ý", "Thái Lan", "Trung Quốc", "Khác"],
@@ -251,28 +245,6 @@ def show_adjustment_form_from_analysis(brand_detected, model_detected, year_dete
             key=f"model_{tab_key}"
         )
         
-        # # Lấy danh sách phiên bản
-        # if model and model != "":
-        #     try:
-        #         variants = get_variants(brand, model)
-        #         variant_options = ["Tất cả phiên bản"] + variants if variants else ["Tất cả phiên bản"]
-                
-        #         variant = st.selectbox(
-        #             "Phiên bản",
-        #             variant_options,
-        #             key=f"variant_{tab_key}",
-        #             help="Chọn 'Tất cả phiên bản' nếu không nhớ chính xác phiên bản"
-        #         )
-                
-        #         # Nếu chọn "Tất cả phiên bản", variant sẽ là None
-        #         if variant == "Tất cả phiên bản":
-        #             variant = None
-        #     except Exception as e:
-        #         variant = None
-        #         st.warning(f"Không thể lấy danh sách phiên bản: {str(e)}")
-        # else:
-        #     variant = None
-        
         # Chuyển year về số nguyên nếu là chuỗi
         if isinstance(year_detected, str):
             try:
@@ -342,23 +314,7 @@ def show_adjustment_form_from_analysis(brand_detected, model_detected, year_dete
         # Chuyển đổi khoảng km thành giá trị số
         km_driven = convert_km_range_to_value(km_range)
         
-        # Chuyển condition thành chuỗi nếu cần
-        if isinstance(condition_detected, str):
-            condition_value = condition_detected
-        else:
-            condition_value = "Tốt"
-        
-        # Đảm bảo giá trị condition nằm trong danh sách tùy chọn
-        condition_options = ["Rất kém", "Kém", "Trung bình", "Tốt", "Rất tốt"]
-        if condition_value not in condition_options:
-            condition_value = "Tốt"
-        
-        condition = st.select_slider(
-            "Tình trạng xe",
-            options=condition_options,
-            value=condition_value,
-            key=f"condition_{tab_key}"
-        )
+        condition = "Tốt"
         
         origin = st.selectbox(
             "Xuất xứ",
@@ -411,13 +367,11 @@ def process_prediction(brand, model, variant, year, km_driven, condition, origin
                 similar_listings = fetch_similar_listings(
                     predicted_price=result['price'],
                     input_data=input_data,
-                    limit=3,
-                    max_days_old=90  # Mặc định lấy bài đăng trong 3 tháng gần nhất
                 )
                 
                 if not similar_listings.empty:
                     st.markdown("---")
-                    display_similar_listings(similar_listings, result['price'])
+                    display_similar_listings(similar_listings)
                 else:
                     st.info("Không tìm thấy bài đăng tương tự.")
             
@@ -440,7 +394,7 @@ def convert_km_range_to_value(km_range):
     else:  # Trên 50,000 km
         return 60000
     
-def fetch_similar_listings(predicted_price, input_data, limit=3, max_days_old=30):
+def fetch_similar_listings(predicted_price, input_data):
     """
     Truy vấn các bài đăng có giá gần với giá dự đoán
     
@@ -501,13 +455,12 @@ def fetch_similar_listings(predicted_price, input_data, limit=3, max_days_old=30
         logger.error(f"Lỗi khi tìm kiếm bài đăng tương tự: {str(e)}")
         return pd.DataFrame()
 
-def display_similar_listings(similar_listings, predicted_price):
+def display_similar_listings(similar_listings):
     """
     Hiển thị các bài đăng có giá gần với giá dự đoán
     
     Args:
         similar_listings: DataFrame chứa thông tin các bài đăng tương tự
-        predicted_price: Giá dự đoán (VND)
     """
     if similar_listings.empty:
         st.info("Không tìm thấy bài đăng tương tự.")
@@ -518,22 +471,68 @@ def display_similar_listings(similar_listings, predicted_price):
     # Hiển thị các bài đăng
     for i, row in similar_listings.iterrows():
         with st.container():
-            col1, col2 = st.columns([3, 1])
+            # Tạo layout với 3 columns
+            col1, col2, col3 = st.columns([3, 2, 1])
+            
             with col1:
+                # Thông tin chính về xe
                 st.markdown(f"**{row['title']}**")
-                st.text(f"📍 {row['location']}")
-            with col2:
-                st.markdown(f"### {row['price_millions']} triệu")
                 
+                # Thông tin chi tiết về xe với icon
+                if 'brand' in row and row['brand'] and 'model' in row and row['model']:
+                    st.text(f"🏭 Model: {row['brand']} {row['model']}")
+                if 'reg_year' in row and row['reg_year']:
+                    st.text(f"📅 Năm đăng ký: {row['reg_year']}")
+                if 'condition' in row and row['condition']:
+                    st.text(f"🔍 Tình trạng: {row['condition']}")
+                
+                # Thông tin về vị trí và thời gian đăng
+                if 'location' in row and row['location']:
+                    st.text(f"📍 {row['location']}")
+                
+                # Thông tin về thời gian đăng
+                if 'post_date_display' in row and row['post_date_display']:
+                    st.text(f"⏱️ Đăng ngày: {row['post_date_display']}")
+                elif 'days_since_posted' in row and row['days_since_posted'] is not None:
+                    st.text(f"⏱️ Đã đăng: {row['days_since_posted']} ngày trước")
+                
+            with col2:
+                # Thông tin kỹ thuật
+                tech_details = []
+                if 'mileage' in row and row['mileage']:
+                    tech_details.append(f"📏 Số km: {row['mileage']}")
+                if 'engine_capacity' in row and row['engine_capacity']:
+                    tech_details.append(f"🔧 Dung tích: {row['engine_capacity']}")
+                if 'origin' in row and row['origin']:
+                    tech_details.append(f"🌐 Nguồn gốc: {row['origin']}")
+                
+                for detail in tech_details:
+                    st.text(detail)
+                
+                # Mô tả ngắn nếu có
+                if 'description' in row and row['description']:
+                    # Cắt mô tả nếu quá dài
+                    description = row['description']
+                    if len(description) > 150:
+                        description = description[:147] + "..."
+                    st.markdown(f"📝 **Mô tả:**\n{description}")
+            
+            with col3:
+                # Hiển thị giá và nút xem chi tiết
+                if 'price_millions' in row and row['price_millions'] is not None:
+                    st.markdown(f"### {row['price_millions']} triệu")
+                elif 'price' in row and row['price']:
+                    st.markdown(f"### {row['price']}")
+                                
                 # Tạo khóa duy nhất cho mỗi nút
                 button_key = f"btn_listing_{row.get('id', i)}"
                 
                 # Kiểm tra URL có đầy đủ không
-                url = row.get('url', '')
+                url = row.get('url_full', row.get('url', ''))
                 if url and not url.startswith(('http://', 'https://')):
                     url = f"https://xe.chotot.com{url}"
                 
-                # Hiển thị liên kết trực tiếp thay vì button
-                st.markdown(f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer;'>Xem chi tiết</button></a>", unsafe_allow_html=True)
+                # Hiển thị liên kết trực tiếp
+                st.markdown(f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer; width:100%;'>Xem chi tiết</button></a>", unsafe_allow_html=True)
             
             st.markdown("---")

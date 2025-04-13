@@ -7,7 +7,6 @@ import joblib
 import streamlit as st
 import logging
 from config import MODEL_PATH
-from sklearn.preprocessing import PolynomialFeatures
 from model_training.data_processing import process_prediction_input
 
 # Cấu hình logging
