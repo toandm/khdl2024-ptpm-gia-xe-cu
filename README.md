@@ -172,5 +172,5 @@ python -m model_training.train
 ## Chạy ứng dụng web
 
 ```bash
-streamlit run app.py
+streamlit run run.py
 ```
