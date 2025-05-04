@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 def show_price_prediction():
     """Hiển thị trang dự đoán giá xe"""
     st.title("Dự đoán giá xe máy cũ")
-    st.markdown("Nhập thông tin xe để dự đoán giá.")
+    st.markdown(
+        "Bạn muốn bán xe máy của bạn mà không biết nên bán bao nhiêu tiền?"
+        " Nhập thông tin xe vào đây để dự đoán giá bán."
+    )
 
     # Tạm bỏ các tab, chỉ dùng 1 tab
     show_input_specs_tab()
