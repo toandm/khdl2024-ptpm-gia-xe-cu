@@ -502,8 +502,8 @@ def fetch_similar_listings(predicted_price, input_data):
         # Sắp xếp DataFrame, ưu tiên các URL hợp lệ
         similar_listings["is_url_valid"] = similar_listings["url_full"].isin(valid_urls)
         similar_listings.sort_values(
-            by=["is_url_valid", "reg_year_diff", "price_diff"],
-            ascending=[False, True, True],
+            by=["is_url_valid", "reg_year_diff", "mileage_diff", "price_diff"],
+            ascending=[False, True, True, True],
             inplace=True,
         )
         logger.info(
