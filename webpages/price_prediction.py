@@ -395,7 +395,6 @@ def process_prediction(brand, model, variant, year, km_driven, condition, origin
             ).rstrip(".")
 
             # Hiển thị kết quả
-            st.success("Kết quả dự đoán:")
             col1, col2 = st.columns(2)
             st.metric("Giá dự đoán", f"{formatted_price} triệu VND")
             # with col1:
