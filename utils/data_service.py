@@ -76,7 +76,8 @@ def get_similar_listings(
         SELECT 
             *,
             ABS(price_numeric - ?) AS price_diff,
-            ((price_numeric - ?) / ? * 100) AS price_diff_percent
+            ((price_numeric - ?) / ? * 100) AS price_diff_percent,
+            ABS(reg_year_numeric - ?) AS reg_year_diff
         FROM 
             motorbikes
         WHERE 
@@ -84,7 +85,7 @@ def get_similar_listings(
         """
 
         # Danh sách tham số cho truy vấn
-        params = [predicted_price, predicted_price, predicted_price]
+        params = [predicted_price, predicted_price, predicted_price, year]
 
         # Thêm điều kiện lọc theo brand
         if brand:
@@ -96,8 +97,8 @@ def get_similar_listings(
             query += " AND LOWER(model_normalized) LIKE LOWER(?)"
             params.append(f"%{model}%")
 
-        # Sắp xếp theo khoảng cách giá và thời gian đăng (nếu có)
-        query += " ORDER BY price_diff ASC"
+        # Sắp xếp theo năm đăng ký, khoảng cách giá và thời gian đăng (nếu có)
+        query += " ORDER BY reg_year_diff ASC, price_diff ASC"
         if "post_date" in [
             col[0] for col in conn.execute("PRAGMA table_info(motorbikes)").fetchall()
         ]:
