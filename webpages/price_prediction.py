@@ -86,7 +86,7 @@ def show_input_specs_tab():
         #     variant = None
 
         year = st.slider(
-            "Năm sản xuất", min_value=2000, max_value=2025, value=2020, key="year_tab1"
+            "Năm sản xuất", min_value=2000, max_value=2025, value=2019, key="year_tab1"
         )
 
     with col2:
@@ -446,6 +446,7 @@ def fetch_similar_listings(predicted_price, input_data):
         DataFrame chứa thông tin các bài đăng tương tự
     """
     OUTPUT_NUM = 3
+    CHECK_NUM = 10
     try:
         # Trích xuất các thông số từ input_data
         model = input_data.get("model", "")
@@ -477,9 +478,9 @@ def fetch_similar_listings(predicted_price, input_data):
         # Kiểm tra xem URL còn hợp lệ không.
         for url in similar_listings["url_full"]:
             try:
-                # Kiểm tra 15 URL đầu tiên
+                # Kiểm tra {CHECK_NUM} URL đầu tiên
                 check_count += 1
-                if check_count >= 15:
+                if check_count >= CHECK_NUM:
                     break
 
                 # Thử kết nối và kiểm tra status code
