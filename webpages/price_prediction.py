@@ -469,18 +469,27 @@ def fetch_similar_listings(predicted_price, input_data):
             origin=origin,
         )
         valid_urls = []
-        count = 0
+        total_count = 0
+        valid_count = 0
         for url in similar_listings["url_full"]:
             try:
-                if count > 5:
+                # Kiểm tra 15 URL đầu tiên
+                total_count += 1
+                if total_count >= 15:
                     break
-                count += 1
+
                 # Thử kết nối và kiểm tra status code
                 response = requests.get(url)
 
                 # Chỉ giữ lại URL có status code 200
                 if response.status_code == 200:
                     valid_urls.append(url)
+
+                    # Đếm số lượng URL có status code 200.
+                    # Chỉ cần output ra 3 URL
+                    valid_count += 1
+                    if valid_count >= 3:
+                        break
 
             except requests.RequestException:
                 # Bỏ qua các URL gặp lỗi kết nối
@@ -490,7 +499,9 @@ def fetch_similar_listings(predicted_price, input_data):
         similar_listings = similar_listings[
             similar_listings["url_full"].isin(valid_urls)
         ]
-        logger.info(f"Đã tìm thấy {len(similar_listings)} bài đăng tương tự")
+        logger.info(
+            f"Đã tìm thấy {len(similar_listings)} bài đăng tương tự có URL hợp lệ."
+        )
         return similar_listings
 
     except Exception as e:
