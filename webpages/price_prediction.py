@@ -391,12 +391,12 @@ def process_prediction(brand, model, variant, year, km_driven, condition, origin
             # Hiển thị kết quả
             st.success("Kết quả dự đoán:")
             col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Giá dự đoán", f"{formatted_price} triệu VND")
-                st.metric("Khoảng giá", f"{formatted_low} - {formatted_high} triệu VND")
-            with col2:
-                st.progress(result["confidence"])
-                st.write(f"Độ tin cậy: {int(result['confidence']*100)}%")
+            st.metric("Giá dự đoán", f"{formatted_price} triệu VND")
+            # with col1:
+            # with col2:
+            #     st.metric("Khoảng giá", f"{formatted_low} - {formatted_high} triệu VND")
+            # st.progress(result["confidence"])
+            # st.write(f"Độ tin cậy: {int(result['confidence']*100)}%")
 
             # Tìm và hiển thị các bài đăng tương tự
             with st.spinner("Đang tìm kiếm các bài đăng tương tự..."):
@@ -445,6 +445,7 @@ def fetch_similar_listings(predicted_price, input_data):
     Returns:
         DataFrame chứa thông tin các bài đăng tương tự
     """
+    OUTPUT_NUM = 3
     try:
         # Trích xuất các thông số từ input_data
         model = input_data.get("model", "")
@@ -459,7 +460,7 @@ def fetch_similar_listings(predicted_price, input_data):
         )
 
         # Gọi hàm get_similar_listings từ data_service với đầy đủ thông số
-        similar_listings = get_similar_listings(
+        similar_listings: pd.DataFrame = get_similar_listings(
             predicted_price=predicted_price,
             brand=brand,
             model=model,
@@ -469,12 +470,18 @@ def fetch_similar_listings(predicted_price, input_data):
             origin=origin,
         )
         valid_urls = []
-        count = 0
+        total_count = len(similar_listings)
+        check_count = 0
+        valid_count = 0
+
+        # Kiểm tra xem URL còn hợp lệ không.
         for url in similar_listings["url_full"]:
             try:
-                if count > 5:
+                # Kiểm tra 15 URL đầu tiên
+                check_count += 1
+                if check_count >= 15:
                     break
-                count += 1
+
                 # Thử kết nối và kiểm tra status code
                 response = requests.get(url)
 
@@ -482,15 +489,30 @@ def fetch_similar_listings(predicted_price, input_data):
                 if response.status_code == 200:
                     valid_urls.append(url)
 
+                    # Đếm số lượng URL có status code 200.
+                    # Chỉ cần output ra {OUTPUT_NUM} URL
+                    valid_count += 1
+                    if valid_count >= OUTPUT_NUM:
+                        break
+
             except requests.RequestException:
                 # Bỏ qua các URL gặp lỗi kết nối
                 continue
 
-        # Lọc DataFrame chỉ giữ lại các URL hợp lệ
-        similar_listings = similar_listings[
-            similar_listings["url_full"].isin(valid_urls)
-        ]
-        logger.info(f"Đã tìm thấy {len(similar_listings)} bài đăng tương tự")
+        # Sắp xếp DataFrame, ưu tiên các URL hợp lệ
+        similar_listings["is_url_valid"] = similar_listings["url_full"].isin(valid_urls)
+        similar_listings.sort_values(
+            by=["is_url_valid", "reg_year_diff", "mileage_diff", "price_diff"],
+            ascending=[False, True, True, True],
+            inplace=True,
+        )
+        logger.info(
+            f"Đã tìm thấy {total_count} bài đăng tương tự, trong đó"
+            f" {valid_count} bài đăng có URL hợp lệ."
+        )
+
+        # Trả ra nhiều nhất {OUTPUT_NUM} bài đăng
+        similar_listings = similar_listings.head(OUTPUT_NUM)
         return similar_listings
 
     except Exception as e:
@@ -578,9 +600,16 @@ def display_similar_listings(similar_listings):
                     url = f"https://xe.chotot.com{url}"
 
                 # Hiển thị liên kết trực tiếp
-                st.markdown(
-                    f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer; width:100%;'>Xem chi tiết</button></a>",
-                    unsafe_allow_html=True,
-                )
+                if row["is_url_valid"]:
+                    st.markdown(
+                        f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer; width:100%;'>Xem chi tiết</button></a>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    # Nút cho liên kết đã bị xóa
+                    st.markdown(
+                        f"<a href='{url}' target='_blank'><button disabled style='background-color:#D3D3D3; color:#A9A9A9; border:none; border-radius:4px; padding:8px 16px; cursor:not-allowed; width:100%;'>Bài đăng đã bị xóa</button></a>",
+                        unsafe_allow_html=True,
+                    )
 
             st.markdown("---")
