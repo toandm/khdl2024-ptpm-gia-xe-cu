@@ -599,4 +599,10 @@ def display_similar_listings(similar_listings):
                     unsafe_allow_html=True,
                 )
 
+                # Nút cho liên kết đã bị xóa
+                # st.markdown(
+                #     f"<a href='{url}' target='_blank'><button disabled style='background-color:#D3D3D3; color:#A9A9A9; border:none; border-radius:4px; padding:8px 16px; cursor:not-allowed; width:100%;'>Bài đăng đã bị xóa</button></a>",
+                #     unsafe_allow_html=True,
+                # )
+
             st.markdown("---")
