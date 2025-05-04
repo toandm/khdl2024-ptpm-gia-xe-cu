@@ -469,13 +469,14 @@ def fetch_similar_listings(predicted_price, input_data):
             origin=origin,
         )
         valid_urls = []
-        total_count = 0
+        total_count = len(similar_listings)
+        check_count = 0
         valid_count = 0
         for url in similar_listings["url_full"]:
             try:
                 # Kiểm tra 15 URL đầu tiên
-                total_count += 1
-                if total_count >= 15:
+                check_count += 1
+                if check_count >= 15:
                     break
 
                 # Thử kết nối và kiểm tra status code
@@ -496,12 +497,16 @@ def fetch_similar_listings(predicted_price, input_data):
                 continue
 
         # Lọc DataFrame chỉ giữ lại các URL hợp lệ
-        similar_listings = similar_listings[
-            similar_listings["url_full"].isin(valid_urls)
-        ]
+        # similar_listings = similar_listings[
+        #     similar_listings["url_full"].isin(valid_urls)
+        # ]
         logger.info(
-            f"Đã tìm thấy {len(similar_listings)} bài đăng tương tự có URL hợp lệ."
+            f"Đã tìm thấy {total_count} bài đăng tương tự, trong đó"
+            f" {valid_count} bài đăng có URL hợp lệ."
         )
+
+        # Trả ra nhiều nhất 3 bài đăng
+        similar_listings = similar_listings.head(3)
         return similar_listings
 
     except Exception as e:
