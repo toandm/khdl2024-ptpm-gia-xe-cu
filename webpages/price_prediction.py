@@ -391,12 +391,12 @@ def process_prediction(brand, model, variant, year, km_driven, condition, origin
             # Hiển thị kết quả
             st.success("Kết quả dự đoán:")
             col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Giá dự đoán", f"{formatted_price} triệu VND")
-                st.metric("Khoảng giá", f"{formatted_low} - {formatted_high} triệu VND")
-            with col2:
-                st.progress(result["confidence"])
-                st.write(f"Độ tin cậy: {int(result['confidence']*100)}%")
+            st.metric("Giá dự đoán", f"{formatted_price} triệu VND")
+            # with col1:
+            # with col2:
+            #     st.metric("Khoảng giá", f"{formatted_low} - {formatted_high} triệu VND")
+            # st.progress(result["confidence"])
+            # st.write(f"Độ tin cậy: {int(result['confidence']*100)}%")
 
             # Tìm và hiển thị các bài đăng tương tự
             with st.spinner("Đang tìm kiếm các bài đăng tương tự..."):
