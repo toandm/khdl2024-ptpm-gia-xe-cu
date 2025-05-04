@@ -472,6 +472,8 @@ def fetch_similar_listings(predicted_price, input_data):
         total_count = len(similar_listings)
         check_count = 0
         valid_count = 0
+
+        # Kiểm tra xem URL còn hợp lệ không.
         for url in similar_listings["url_full"]:
             try:
                 # Kiểm tra 15 URL đầu tiên
@@ -497,9 +499,8 @@ def fetch_similar_listings(predicted_price, input_data):
                 continue
 
         # Lọc DataFrame chỉ giữ lại các URL hợp lệ
-        similar_listings = similar_listings[
-            similar_listings["url_full"].isin(valid_urls)
-        ]
+        similar_listings["is_url_valid"] = similar_listings["url_full"].isin(valid_urls)
+        similar_listings = similar_listings[similar_listings["is_url_valid"] == True]
         logger.info(
             f"Đã tìm thấy {total_count} bài đăng tương tự, trong đó"
             f" {valid_count} bài đăng có URL hợp lệ."
@@ -594,15 +595,16 @@ def display_similar_listings(similar_listings):
                     url = f"https://xe.chotot.com{url}"
 
                 # Hiển thị liên kết trực tiếp
-                st.markdown(
-                    f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer; width:100%;'>Xem chi tiết</button></a>",
-                    unsafe_allow_html=True,
-                )
-
-                # Nút cho liên kết đã bị xóa
-                # st.markdown(
-                #     f"<a href='{url}' target='_blank'><button disabled style='background-color:#D3D3D3; color:#A9A9A9; border:none; border-radius:4px; padding:8px 16px; cursor:not-allowed; width:100%;'>Bài đăng đã bị xóa</button></a>",
-                #     unsafe_allow_html=True,
-                # )
+                if row["is_url_valid"]:
+                    st.markdown(
+                        f"<a href='{url}' target='_blank'><button style='background-color:#1E88E5; color:white; border:none; border-radius:4px; padding:8px 16px; cursor:pointer; width:100%;'>Xem chi tiết</button></a>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    # Nút cho liên kết đã bị xóa
+                    st.markdown(
+                        f"<a href='{url}' target='_blank'><button disabled style='background-color:#D3D3D3; color:#A9A9A9; border:none; border-radius:4px; padding:8px 16px; cursor:not-allowed; width:100%;'>Bài đăng đã bị xóa</button></a>",
+                        unsafe_allow_html=True,
+                    )
 
             st.markdown("---")
