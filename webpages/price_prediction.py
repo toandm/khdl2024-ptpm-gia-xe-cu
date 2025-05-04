@@ -20,6 +20,9 @@ def show_price_prediction():
     st.markdown(
         "Bạn muốn bán xe máy của bạn mà không biết nên bán bao nhiêu tiền?"
         " Nhập thông tin xe vào đây để dự đoán giá bán."
+        "\n\n"
+        "So sánh giá dự đoán với danh sách bài đăng tương tự trên chotot.com"
+        " ở dưới để kiểm tra độ chính xác nhé."
     )
 
     # Tạm bỏ các tab, chỉ dùng 1 tab
