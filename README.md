@@ -159,7 +159,7 @@ python -m crawler.chotot_crawler
 
 ```bash
 # Xử lý dữ liệu thô
-python -m model_training.data_processing
+python -m crawler.clean_data
 ```
 
 ## Huấn luyện mô hình
