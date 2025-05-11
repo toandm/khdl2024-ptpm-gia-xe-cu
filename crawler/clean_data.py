@@ -568,7 +568,7 @@ def filter_raw_data(csv_file_path, output_file_path=None):
         result_df = df_filtered[existing_columns]
         result_df["price_millions"] = (result_df["price_numeric"] / 1_000_000).round(2)
         model_list = [
-            'Liberty', 'Sirius', 'Jupiter', 'Blade', 'Vario', 'Future', 'Vision', 
+            'SH', 'Liberty', 'Sirius', 'Jupiter', 'Blade', 'Vario', 'Future', 'Vision', 
             'Wave', 'Exciter', 'Air Blade', 'Winner X', 'SH Mode', 'Winner', 
             'Nouvo', 'Mio', 'Satria', 'Raider', 'Elegant', 'Lead', 'Attila', 'Angela'
         ]
