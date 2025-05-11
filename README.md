@@ -9,10 +9,9 @@ Dự án này nhằm xây dựng một hệ thống thu thập dữ liệu, xử
 3. [Thu thập dữ liệu](#thu-thập-dữ-liệu)
 4. [Tiền xử lý dữ liệu](#tiền-xử-lý-dữ-liệu)
 5. [Xây dựng mô hình](#xây-dựng-mô-hình)
-6. [Ứng dụng web](#ứng-dụng-web)
+6. [Ứng dụng Streamlit](#ứng-dụng-streamlit)
 7. [Cài đặt](#cài-đặt)
 8. [Hướng dẫn sử dụng](#hướng-dẫn-sử-dụng)
-9. [Kết quả đánh giá](#kết-quả-đánh-giá)
 
 ## Tổng quan
 
@@ -112,7 +111,7 @@ Module model_training/train.py huấn luyện mô hình Random Forest Regression
 
 Mô hình được lưu vào thư mục models/ để sử dụng trong ứng dụng web.
 
-## Ứng dụng web
+## Ứng dụng Streamlit
 
 Ứng dụng web dựa trên Streamlit với các chức năng:
 
@@ -169,8 +168,32 @@ python -m crawler.clean_data
 python -m model_training.train
 ```
 
-## Chạy ứng dụng web
+## Chạy ứng dụng
+
+## Truy cập ứng dụng từ web app online
+Chúng tôi sử dụng Streamlit Community Cloud để host app online. Truy cập app tại đường link này: https://khdl2024-du-bao-gia-xe-cu.streamlit.app/
+
+## Chạy ứng dụng từ Docker image
+Để chạy ứng dụng từ Docker image, bạn cần phải cài đặt Docker trước.
+
+Chúng tôi cũng đã tạo Docker image và đẩy lên Dockerhub dưới dạng public repository. Bạn có thể kéo phiên bản mới nhất của Docker image này về với câu lệnh sau:
+
+```bash
+docker pull toandmftu/khdl2024-ptpm-gia-xe-cu
+```
+
+Chạy image với câu lệnh sau:
+```bash
+docker run -p 8501:8501 toandmftu/khdl2024-ptpm-gia-xe-cu
+```
+
+Sau đó bạn có thể truy cập link http://localhost:8501/ để vào trang web.
+
+## Chạy ứng dụng từ code trên repo
+Bạn cũng có thể chạy app từ code trên repo này. Thực hiện cài đặt các package phụ thuộc trước bằng cách làm theo hướng dẫn ở phần [cài đặt](#cài-đặt). Sau khi đã cài đặt xong thì chạy câu lệnh sau:
 
 ```bash
 streamlit run run.py
 ```
+
+Sau đó bạn có thể truy cập link http://localhost:8501/ để vào trang web.
