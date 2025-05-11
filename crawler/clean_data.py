@@ -488,7 +488,7 @@ def filter_raw_data(csv_file_path, output_file_path=None):
         
         # Trích xuất dung tích động cơ
         if "engine_capacity" in df.columns:
-            df["engine_capacity_numeric"] = df["engine_capacity"].apply(extract_engine_capacity)
+            df["engine_capacity"] = df["engine_capacity"].apply(extract_engine_capacity)
         
         # Chuẩn hóa loại xe
         if "vehicle_type" in df.columns:
@@ -522,7 +522,7 @@ def filter_raw_data(csv_file_path, output_file_path=None):
         # Giá phải ít nhất 1 triệu, tối đa 600 triệu (chỉ áp dụng cho dữ liệu huấn luyện)
         if "price_numeric" in df_filtered.columns:
             df_filtered = df_filtered[
-                df_filtered["price_numeric"].between(1_000_000, 600_000_000, inclusive="neither")
+                df_filtered["price_numeric"].between(1_000_000, 300_000_000, inclusive="neither")
             ]
         
         
@@ -568,7 +568,7 @@ def filter_raw_data(csv_file_path, output_file_path=None):
         result_df = df_filtered[existing_columns]
         result_df["price_millions"] = (result_df["price_numeric"] / 1_000_000).round(2)
         model_list = [
-            'Liberty', 'Sirius', 'Jupiter', 'Blade', 'Vario', 'Future', 'Vision', 
+            'SH', 'Liberty', 'Sirius', 'Jupiter', 'Blade', 'Vario', 'Future', 'Vision', 
             'Wave', 'Exciter', 'Air Blade', 'Winner X', 'SH Mode', 'Winner', 
             'Nouvo', 'Mio', 'Satria', 'Raider', 'Elegant', 'Lead', 'Attila', 'Angela'
         ]
